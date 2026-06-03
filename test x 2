@@ -1,1 +1,106 @@
+local Players = game:GetService("Players")
+local localPlayer = Players.LocalPlayer
+local PlayerGui = localPlayer:WaitForChild("PlayerGui")
 
+-- Xóa GUI cũ nếu có
+if PlayerGui:FindFirstChild("X team") then
+    PlayerGui:FindFirstChild("X team"):Destroy()
+end
+
+-- Tạo ScreenGui
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "X team"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.Parent = PlayerGui
+
+-- Main Frame
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 280, 0, 350)
+Frame.Position = UDim2.new(0.5, -140, 0.5, -175)
+Frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
+Frame.BorderSizePixel = 0
+Frame.Active = true
+Frame.Draggable = true
+Frame.Parent = ScreenGui
+
+-- Viền đỏ
+local stroke = Instance.new("UIStroke", Frame)
+stroke.Color = Color3.fromRGB(220, 0, 0)
+stroke.Thickness = 2
+
+-- Bo góc
+Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+
+-- Tiêu đề
+local Title = Instance.new("TextLabel")
+Title.Size = UDim2.new(1, 0, 0, 45)
+Title.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+Title.BorderSizePixel = 0
+Title.Text = "✖  X TEAM MENU  ✖"
+Title.TextColor3 = Color3.new(1, 1, 1)
+Title.TextScaled = true
+Title.Font = Enum.Font.GothamBold
+Title.Parent = Frame
+Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 8)
+
+-- Nút đóng
+local CloseBtn = Instance.new("TextButton")
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.Position = UDim2.new(1, -35, 0, 8)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(80, 0, 0)
+CloseBtn.Text = "✖"
+CloseBtn.TextColor3 = Color3.new(1, 1, 1)
+CloseBtn.TextScaled = true
+CloseBtn.Font = Enum.Font.GothamBold
+CloseBtn.BorderSizePixel = 0
+CloseBtn.Parent = Frame
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
+CloseBtn.MouseButton1Click:Connect(function()
+    ScreenGui:Destroy()
+end)
+
+-- Hàm tạo nút
+local function createButton(text, yPos, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0, 240, 0, 40)
+    btn.Position = UDim2.new(0.5, -120, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+    btn.Text = text
+    btn.TextColor3 = Color3.fromRGB(220, 0, 0)
+    btn.TextScaled = true
+    btn.Font = Enum.Font.GothamBold
+    btn.BorderSizePixel = 0
+    btn.Parent = Frame
+    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
+    Instance.new("UIStroke", btn).Color = Color3.fromRGB(150, 0, 0)
+
+    -- Hover effect
+    btn.MouseEnter:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
+        btn.TextColor3 = Color3.new(1, 1, 1)
+    end)
+    btn.MouseLeave:Connect(function()
+        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+        btn.TextColor3 = Color3.fromRGB(220, 0, 0)
+    end)
+
+    btn.MouseButton1Click:Connect(callback)
+    return btn
+end
+
+-- ===== CÁC NÚT CHỨC NĂNG =====
+
+-- 1. Teleport đến người chơi
+local nameBox = Instance.new("TextBox")
+nameBox.Size = UDim2.new(0, 240, 0, 35)
+nameBox.Position = UDim2.new(0.5, -120, 0, 55)
+nameBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+nameBox.PlaceholderText = "Nhập tên người chơi..."
+nameBox.Text = ""
+nameBox.TextColor3 = Color3.new(1, 1, 1)
+nameBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
+nameBox.TextScaled = true
+nameBox.Font = Enum.Font.Gotham
+nameBox.BorderSizePixel = 0
+nameBox.Parent = Frame
+Inst
