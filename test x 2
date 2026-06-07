@@ -1,106 +1,39 @@
-local Players = game:GetService("Players")
-local localPlayer = Players.LocalPlayer
-local PlayerGui = localPlayer:WaitForChild("PlayerGui")
+local SG = Instance.new("ScreenGui", CoreGui)
+    local Toggle = Instance.new("TextButton", SG)
+    Toggle.Size = UDim2.new(0, 50, 0, 50); Toggle.Position = UDim2.new(0, 10, 0.5, -25); Toggle.Text = "X"
+    Toggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30); Toggle.TextColor3 = Color3.fromRGB(212, 175, 55); Toggle.Font = "GothamBlack"; Toggle.TextSize = 25; Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
+    Làm cho có thể kéo (Bật/Tắt)
 
--- Xóa GUI cũ nếu có
-if PlayerGui:FindFirstChild("X team") then
-    PlayerGui:FindFirstChild("X team"):Destroy()
-end
+    local Main = Instance.new("Frame", SG); Main.Size = UDim2.new(0, 280, 0, 420); Main.Position = UDim2.new(0.5, -140, 0.5, -210); Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Main.Visible = false; Main.Active = true; Instance.new("UICorner", Main); Instance.new("UIStroke", Main).Color = Color3.fromRGB(212, 175, 55); MakeDraggable(Main)
 
--- Tạo ScreenGui
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Name = "X team"
-ScreenGui.ResetOnSpawn = false
-ScreenGui.Parent = PlayerGui
+    local TabContainer = Instance.new("Frame", Main); TabContainer.Size = UDim2.new(1, 0, 0, 35); TabContainer.Position = UDim2.new(0, 0, 0, 10); TabContainer.BackgroundTransparency = 1
+    local TabList = Instance.new("UIListLayout", TabContainer); TabList.FillDirection = "Horizontal"; TabList.HorizontalAlignment = "Center"; TabList.Padding = UDim.new(0, 5)
 
--- Main Frame
-local Frame = Instance.new("Frame")
-Frame.Size = UDim2.new(0, 280, 0, 350)
-Frame.Position = UDim2.new(0.5, -140, 0.5, -175)
-Frame.BackgroundColor3 = Color3.fromRGB(10, 10, 10)
-Frame.BorderSizePixel = 0
-Frame.Active = true
-Frame.Draggable = true
-Frame.Parent = ScreenGui
+    Khung cục bộ = {}
+    hàm cục bộ CreateTab(name, id)
+        local b = Instance.new("TextButton", TabContainer); b.Size = UDim2.new(0, 80, 0, 30); b.Text = name; b.BackgroundColor3 = Color3.fromRGB(45, 45, 45); b.TextColor3 = Color3.new(1,1,1); b.Font = "GothamBold"; b.TextSize = 10; Instance.new("UICorner", b)
+        local f = Instance.new("ScrollingFrame", Main); f.Size = UDim2.new(1, -20, 1, -70); f.Position = UDim2.new(0, 10, 0, 50); f.Visible = (id == 1); f.BackgroundTransparency = 1; f.ScrollBarThickness = 2; f.CanvasSize = UDim2.new(0, 0, 2.5, 0)
+        Instance.new("UIListLayout", f).Padding = UDim.new(0, 8); Frames[id] = f
+        if id == 1 then b.BackgroundColor3 = Color3.fromRGB(120, 0, 0) end
+        b.MouseButton1Click:Connect(function()
+            for _, fr in pairs(Frames) do fr.Visible = false end
+            for _, btn in pairs(TabContainer:GetChildren()) do if btn:IsA("TextButton") then btn.BackgroundColor3 = Color3.fromRGB(45, 45, 45) end end
+            f.Visible = true; b.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+        kết thúc)
+        trả về f
+    kết thúc
 
--- Viền đỏ
-local stroke = Instance.new("UIStroke", Frame)
-stroke.Color = Color3.fromRGB(220, 0, 0)
-stroke.Thickness = 2
+    hàm cục bộ CreateBtn(p, t, c)
+        local b = Instance.new("TextButton", p); b.Size = UDim2.new(1, 0, 0, 35); b.Text = t; b.BackgroundColor3 = c; b.TextColor3 = Color3.new(1, 1, 1); b.Font = "GothamBold"; b.TextSize = 11; Instance.new("UICorner", b); return b
+    kết thúc
 
--- Bo góc
-Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 8)
+    hàm cục bộ AdjRow(p, labelText, valKey)
+        local row = Instance.new("Frame", p); row.Size = UDim2.new(1, 0, 0, 35); row.BackgroundTransparency = 1
+        local l = Instance.new("TextLabel", row); l.Size = UDim2.new(0, 100, 1, 0); l.Position = UDim2.new(0.5, -50, 0, 0); l.Text = labelText..": "..Config[valKey]; l.BackgroundColor3 = Color3.fromRGB(30, 30, 30); l.TextColor3 = Color3.new(1,1,1); Instance.new("UICorner", l); l.TextSize = 9
+        local d = CreateBtn(row, "-", Color3.fromRGB(80, 0, 0)); d.Size = UDim2.new(0, 40, 1, 0); d.Position = UDim2.new(0, 0, 0, 0)
+        local u = CreateBtn(row, "+", Color3.fromRGB(0, 80, 0)); u.Size = UDim2.new(0, 40, 1, 0); u.Position = UDim2.new(1, -40, 0, 0)
+        u.MouseButton1Click:Connect(function() Config[valKey] = Config[valKey] + (valKey == "CurrentWS" and 10 or 2); l.Text = labelText..": "..Config[valKey] end)
+        d.MouseButton1Click:Connect(function() Config[valKey] = math.max((valKey == "HBS" and 2 or -100), Config[valKey] - (valKey == "CurrentWS" and 10 or 2)); l.Text = labelText..": "..Config[valKey] end)
+    kết thúc
 
--- Tiêu đề
-local Title = Instance.new("TextLabel")
-Title.Size = UDim2.new(1, 0, 0, 45)
-Title.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-Title.BorderSizePixel = 0
-Title.Text = "✖  X TEAM MENU  ✖"
-Title.TextColor3 = Color3.new(1, 1, 1)
-Title.TextScaled = true
-Title.Font = Enum.Font.GothamBold
-Title.Parent = Frame
-Instance.new("UICorner", Title).CornerRadius = UDim.new(0, 8)
-
--- Nút đóng
-local CloseBtn = Instance.new("TextButton")
-CloseBtn.Size = UDim2.new(0, 30, 0, 30)
-CloseBtn.Position = UDim2.new(1, -35, 0, 8)
-CloseBtn.BackgroundColor3 = Color3.fromRGB(80, 0, 0)
-CloseBtn.Text = "✖"
-CloseBtn.TextColor3 = Color3.new(1, 1, 1)
-CloseBtn.TextScaled = true
-CloseBtn.Font = Enum.Font.GothamBold
-CloseBtn.BorderSizePixel = 0
-CloseBtn.Parent = Frame
-Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
-CloseBtn.MouseButton1Click:Connect(function()
-    ScreenGui:Destroy()
-end)
-
--- Hàm tạo nút
-local function createButton(text, yPos, callback)
-    local btn = Instance.new("TextButton")
-    btn.Size = UDim2.new(0, 240, 0, 40)
-    btn.Position = UDim2.new(0.5, -120, 0, yPos)
-    btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-    btn.Text = text
-    btn.TextColor3 = Color3.fromRGB(220, 0, 0)
-    btn.TextScaled = true
-    btn.Font = Enum.Font.GothamBold
-    btn.BorderSizePixel = 0
-    btn.Parent = Frame
-    Instance.new("UICorner", btn).CornerRadius = UDim.new(0, 6)
-    Instance.new("UIStroke", btn).Color = Color3.fromRGB(150, 0, 0)
-
-    -- Hover effect
-    btn.MouseEnter:Connect(function()
-        btn.BackgroundColor3 = Color3.fromRGB(180, 0, 0)
-        btn.TextColor3 = Color3.new(1, 1, 1)
-    end)
-    btn.MouseLeave:Connect(function()
-        btn.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        btn.TextColor3 = Color3.fromRGB(220, 0, 0)
-    end)
-
-    btn.MouseButton1Click:Connect(callback)
-    return btn
-end
-
--- ===== CÁC NÚT CHỨC NĂNG =====
-
--- 1. Teleport đến người chơi
-local nameBox = Instance.new("TextBox")
-nameBox.Size = UDim2.new(0, 240, 0, 35)
-nameBox.Position = UDim2.new(0.5, -120, 0, 55)
-nameBox.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
-nameBox.PlaceholderText = "Nhập tên người chơi..."
-nameBox.Text = ""
-nameBox.TextColor3 = Color3.new(1, 1, 1)
-nameBox.PlaceholderColor3 = Color3.fromRGB(120, 120, 120)
-nameBox.TextScaled = true
-nameBox.Font = Enum.Font.Gotham
-nameBox.BorderSizePixel = 0
-nameBox.Parent = Frame
-Inst
+    local Tab1 = CreateTab("COMBAT", 1); local Tab2 = CreateTab("HITBOX", 2); local Tab3 = CreateTab("KHÁC", 3)
