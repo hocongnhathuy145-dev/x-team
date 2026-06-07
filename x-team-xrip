@@ -426,7 +426,7 @@ function StartScript()
     tpBtn.MouseButton1Click:Connect(function()
         local textName = nameBox.Text if textName == "" then return end
         IsTelePro = not IsTelePro 
-        if IsTelePro then tpBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0) tpBtn.Text = "ĐANG BÁM⚡: " .. textName:upper()
+        if IsTelePro then tpBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0) tpBtn.Text = "ĐANG BÁM: " .. textName:upper()
         else tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) tpBtn.Text = "TELEPORT PRO⚡" if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.Velocity = Vector3.zero end end
     end)
 
