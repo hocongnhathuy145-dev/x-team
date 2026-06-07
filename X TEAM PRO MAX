@@ -85,7 +85,7 @@ function StartScript()
         HitboxSize = 20,         -- Đã sửa mặc định thành 20 theo yêu cầu
         HitboxWhitelist = {},    -- Danh sách loại trừ Hitbox riêng biệt
         OX = 0, OY = 5, OZ = 0,
-        ZZSpeed = 15, ZZRange = 12, ZZUpDownSpeed = 10,    
+        ZZSpeed = 10, ZZRange = 10, ZZUpDownSpeed = 10,    
         DefaultEscapeHeight = 500, CircleRadius = 25, CircleSpeed = 16, EscapeDuration = 3.0,
         IsSpeedHack = false, CustomSpeed = 120, IsInfJump = false
     }
@@ -324,8 +324,8 @@ function StartScript()
     local sec2 = Instance.new("Frame", Tab2); sec2.Size = UDim2.new(1,0,0,550); sec2.BackgroundTransparency = 1
     local title2 = Instance.new("TextLabel", sec2); title2.Size = UDim2.new(1,0,0,30); title2.Text = "🛠️ HITBOX & LIVE LIST"; title2.TextColor3 = Color3.fromRGB(255,255,255); title2.BackgroundTransparency = 1; title2.Font = Enum.Font.GothamBold
 
-    -- Nút bật tắt kích hoạt cơ chế kéo tâm hitbox chính
-    local hitboxToggleBtn = Instance.new("TextButton", sec2); hitboxToggleBtn.Size = UDim2.new(1,-10,0,42); hitboxToggleBtn.Position = UDim2.new(0,5,0,35); hitboxToggleBtn.Text = "BẬT KÉO TÂM HITBOX"; hitboxToggleBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); hitboxToggleBtn.TextColor3 = Color3.fromRGB(255,255,255); hitboxToggleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", hitboxToggleBtn)
+    -- Nút bật tắt kích hoạt cơ chế hitbox chính
+    local hitboxToggleBtn = Instance.new("TextButton", sec2); hitboxToggleBtn.Size = UDim2.new(1,-10,0,42); hitboxToggleBtn.Position = UDim2.new(0,5,0,35); hitboxToggleBtn.Text = "BẬT HITBOX"; hitboxToggleBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); hitboxToggleBtn.TextColor3 = Color3.fromRGB(255,255,255); hitboxToggleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", hitboxToggleBtn)
 
     -- Thanh thiết lập tăng giảm nhanh kích thước Hitbox (Mặc định: 20)
     local hitboxSetRow = Instance.new("Frame", sec2); hitboxSetRow.Size = UDim2.new(1,-10,0,35); hitboxSetRow.Position = UDim2.new(0,5,0,85); hitboxSetRow.BackgroundTransparency = 1
