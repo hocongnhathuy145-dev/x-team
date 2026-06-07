@@ -17,8 +17,27 @@ if not Whitelist[PlayerName] then
     return
 end
 
--- Khai báo hàm chạy Script chính sau khi Login thành công
-local function StartScript()
+-- PHẦN UI LOGIN (CHỈ HIỆN KHI CÓ TRONG WHITELIST)
+local CoreGui = game:GetService("CoreGui")
+local AuthSG = Instance.new("ScreenGui", CoreGui)
+local AuthMain = Instance.new("Frame", AuthSG)
+AuthMain.Size = UDim2.new(0, 300, 0, 150); AuthMain.Position = UDim2.new(0.5, -150, 0.5, -75); AuthMain.BackgroundColor3 = Color3.fromRGB(20, 20, 20); Instance.new("UICorner", AuthMain)
+local Stroke = Instance.new("UIStroke", AuthMain); Stroke.Color = Color3.fromRGB(212, 175, 55); Stroke.Thickness = 2
+
+local Title = Instance.new("TextLabel", AuthMain)
+Title.Size = UDim2.new(1, 0, 0, 40); Title.Text = "X-SYSTEM LOGIN ("..PlayerName..")"; Title.TextColor3 = Color3.fromRGB(212, 175, 55); Title.Font = "GothamBlack"; Title.TextSize = 14; Title.BackgroundTransparency = 1
+
+local PassInput = Instance.new("TextBox", AuthMain)
+PassInput.Size = UDim2.new(0.8, 0, 0, 35); PassInput.Position = UDim2.new(0.1, 0, 0.35, 0); PassInput.PlaceholderText = "NHẬP MẬT KHẨU..."; PassInput.Text = ""; PassInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40); PassInput.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", PassInput)
+
+local LoginBtn = Instance.new("TextButton", AuthMain)
+LoginBtn.Size = UDim2.new(0.8, 0, 0, 35); LoginBtn.Position = UDim2.new(0.1, 0, 0.65, 0); LoginBtn.Text = "XÁC NHẬN"; LoginBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 0); LoginBtn.TextColor3 = Color3.new(1, 1, 1); LoginBtn.Font = "GothamBold"; Instance.new("UICorner", LoginBtn)
+
+-- ==================== HÀM KHỞI CHẠY SCRIPT CHÍNH ====================
+function StartScript()
+    -- Xóa UI Login sau khi thành công
+    AuthSG:Destroy()
+
     -- ==================== SERVICES ====================
     local Players = game:GetService("Players")
     local RunService = game:GetService("RunService")
@@ -27,7 +46,7 @@ local function StartScript()
 
     local player = Players.LocalPlayer
 
-    -- Kiểm tra và lấy UI Parent an toàn
+    -- Kiểm tra và lấy UI Parent an toàn (Chống lỗi không lên GUI)
     local uiParent = nil
     local success, err = pcall(function()
         if CoreGui and CoreGui:FindFirstChild("RobloxGui") then
@@ -43,7 +62,6 @@ local function StartScript()
     local currentConnection = nil
     local globalEscapeConnection = nil 
     local hitboxConnection = nil
-    local noclipConnection = nil
     local isFollowing = false
     local isZicZac = false 
 
@@ -148,8 +166,8 @@ local function StartScript()
     Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
 
     local Main = Instance.new("Frame", SG)
-    Main.Size = UDim2.new(0, 310, 0, 600) 
-    Main.Position = UDim2.new(0.5, -155, 0.5, -300)
+    Main.Size = UDim2.new(0, 310, 0, 640) 
+    Main.Position = UDim2.new(0.5, -155, 0.5, -320)
     Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
     Main.Visible = true 
     Main.Active = true
@@ -182,12 +200,8 @@ local function StartScript()
         f.Visible = (id == 1)
         f.BackgroundTransparency = 1
         f.ScrollBarThickness = 3
-        f.CanvasSize = UDim2.new(0, 0, 0, 0)
-        f.AutomaticCanvasSize = Enum.AutomaticSize.Y
-        
-        local listLayout = Instance.new("UIListLayout", f)
-        listLayout.Padding = UDim.new(0, 8)
-        listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        f.CanvasSize = UDim2.new(0, 0, 0, 780) 
+        Instance.new("UIListLayout", f).Padding = UDim.new(0, 8)
         
         Frames[id] = f
         Buttons[id] = b
@@ -222,7 +236,6 @@ local function StartScript()
     end
 
     -- Hitbox rộng
-    if hitboxConnection then hitboxConnection:Disconnect() end
     hitboxConnection = RunService.RenderStepped:Connect(function()
         if not Config.IsHitboxExtend then return end
         for _, p in ipairs(Players:GetPlayers()) do
@@ -242,7 +255,6 @@ local function StartScript()
     end)
 
     -- Luồng Escape Siêu Tốc Không Khựng
-    if globalEscapeConnection then globalEscapeConnection:Disconnect() end
     globalEscapeConnection = RunService.Heartbeat:Connect(function(deltaTime)
         local myChar = player.Character
         if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
@@ -256,7 +268,6 @@ local function StartScript()
             targetEscapeY = (currentY >= 500) and (currentY + 500) or Config.DefaultEscapeHeight
             
             hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
             hrp.CFrame = CFrame.new(hrp.Position.X, targetEscapeY, hrp.Position.Z)
         end
 
@@ -266,20 +277,16 @@ local function StartScript()
                 angle = angle + (Config.CircleSpeed * deltaTime)
                 local offsetX = math.cos(angle) * Config.CircleRadius
                 local offsetZ = math.sin(angle) * Config.CircleRadius
-                
                 hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
                 hrp.CFrame = CFrame.new(hrp.Position.X + offsetX, targetEscapeY, hrp.Position.Z + offsetZ)
             else
                 isEscaping = false 
-                hrp.Anchored = false
             end
         end
     end)
 
     -- Noclip toàn bộ trạng thái di chuyển
-    if noclipConnection then noclipConnection:Disconnect() end
-    noclipConnection = RunService.Stepped:Connect(function()
+    RunService.Stepped:Connect(function()
         local myChar = player.Character
         if myChar and (isFollowing or isEscaping) then
             for _, part in ipairs(myChar:GetDescendants()) do
@@ -291,31 +298,12 @@ local function StartScript()
     end)
 
     -- ==================== HỆ THỐNG THEO DÕI VÀ KẾT HỢP ZIC ZAC XUNG QUANH ====================
-    local tpBtn
-    local zzBtn
-
-    local function stopFollowingSystem()
-        if currentConnection then currentConnection:Disconnect() currentConnection = nil end
-        local myChar = player.Character
-        if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-            myChar.HumanoidRootPart.Anchored = false
-            myChar.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-            myChar.HumanoidRootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-        end
-    end
-
     local function startFollowingSystem(targetPlayer)
         if currentConnection then currentConnection:Disconnect() end
         
         currentConnection = RunService.Heartbeat:Connect(function(deltaTime)
             local myChar = player.Character
-            if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
-            local hrp = myChar.HumanoidRootPart
-            
-            if isEscaping then 
-                hrp.Anchored = false
-                return 
-            end
+            if not myChar or not myChar:FindFirstChild("HumanoidRootPart") or isEscaping then return end
             
             if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") or IsWhitelisted(targetPlayer) then
                 isFollowing = false
@@ -324,14 +312,14 @@ local function StartScript()
                 return
             end
 
+            local hrp = myChar.HumanoidRootPart
             local targetHrp = targetPlayer.Character.HumanoidRootPart
 
             if isFollowing then
-                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
-                
                 if isZicZac then
+                    -- PHƯƠNG THỨC XOAY ZIC ZAC XUNG QUANH
                     zzAngle = zzAngle + (Config.ZZSpeed * 0.1 * deltaTime)
+                    
                     local zigZagSine = math.sin(zzAngle * 5) * (Config.ZZRange * 0.4)
                     local currentRadius = Config.ZZRange + zigZagSine
                     
@@ -339,12 +327,23 @@ local function StartScript()
                     local offsetZ = math.sin(zzAngle) * currentRadius
                     
                     hrp.CFrame = CFrame.new(targetHrp.Position.X + offsetX, targetHrp.Position.Y + Config.OY, targetHrp.Position.Z + offsetZ)
+                    hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 else
+                    -- TELEPORT LƠ LỬNG CỐ ĐỊNH BAN ĐẦU
                     local goal = targetHrp.CFrame * CFrame.new(Config.OX, Config.OY, Config.OZ)
                     hrp.CFrame = goal
+                    hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
                 end
             end
         end)
+    end
+
+    function stopFollowingSystem()
+        if currentConnection then currentConnection:Disconnect() currentConnection = nil end
+        local myChar = player.Character
+        if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+            myChar.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+        end
     end
 
     -- Luồng tấn công từ xa liên tục
@@ -364,7 +363,7 @@ local function StartScript()
 
     -- ==================== THIẾT KẾ GIAO DIỆN HÀNG DỌC (TAB 1) ====================
     local sec1 = Instance.new("Frame", Tab1)
-    sec1.Size = UDim2.new(1, 0, 0, 680); sec1.BackgroundTransparency = 1
+    sec1.Size = UDim2.new(1,0,0,750); sec1.BackgroundTransparency = 1
 
     local title1 = Instance.new("TextLabel", sec1)
     title1.Size = UDim2.new(1,0,0,25); title1.Text = "🚀 MAIN AUTO COMBAT"; title1.TextColor3 = Color3.fromRGB(255,255,255); title1.BackgroundTransparency = 1; title1.Font = Enum.Font.GothamBold
@@ -372,6 +371,7 @@ local function StartScript()
     local nameBox = Instance.new("TextBox", sec1)
     nameBox.Size = UDim2.new(1,-10,0,35); nameBox.Position = UDim2.new(0,5,0,30); nameBox.PlaceholderText = "Nhập tên mục tiêu..."; nameBox.BackgroundColor3 = Color3.fromRGB(30,30,30); nameBox.TextColor3 = Color3.fromRGB(255,255,255); Instance.new("UICorner", nameBox)
 
+    -- Dòng thông số: [-] Bên trái | Ô nhập ở giữa | [+] Bên phải
     local currentYPos = 75
     local function CreateVerticalSetting(labelName, defaultValue, updateCallback)
         local rowFrame = Instance.new("Frame", sec1)
@@ -441,6 +441,7 @@ local function StartScript()
         currentYPos = currentYPos + 38
     end
 
+    -- Tạo danh sách cài đặt
     CreateVerticalSetting("Trục vị trí X:", Config.OX, function(v) Config.OX = v end)
     CreateVerticalSetting("Trục vị trí Y:", Config.OY, function(v) Config.OY = v end)
     CreateVerticalSetting("Trục vị trí Z:", Config.OZ, function(v) Config.OZ = v end)
@@ -467,8 +468,6 @@ local function StartScript()
 
     local blockBtn = Instance.new("TextButton", sec1)
     blockBtn.Size = UDim2.new(1,-10,0,42); blockBtn.Position = UDim2.new(0,5,0,currentYPos); blockBtn.Text = "BẬT AUTO BLOCK (REMOTE)"; blockBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); blockBtn.TextColor3 = Color3.fromRGB(255,255,255); blockBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", blockBtn)
-
-    sec1.Size = UDim2.new(1, 0, 0, currentYPos + 45)
 
     -- ==================== GIAO DIỆN PHẦN TỬ (TAB 2) ====================
     local sec2 = Instance.new("Frame", Tab2)
@@ -602,30 +601,10 @@ local function StartScript()
     Toggle.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
 end
 
--- PHẦN UI LOGIN (CHỈ HIỆN KHI CÓ TRONG WHITELIST)
-local CoreGui = game:GetService("CoreGui")
-local AuthSG = Instance.new("ScreenGui", CoreGui)
-AuthSG.Name = "XSystemAuthGui"
-AuthSG.ResetOnSpawn = false
-
-local AuthMain = Instance.new("Frame", AuthSG)
-AuthMain.Size = UDim2.new(0, 300, 0, 150); AuthMain.Position = UDim2.new(0.5, -150, 0.5, -75); AuthMain.BackgroundColor3 = Color3.fromRGB(20, 20, 20); Instance.new("UICorner", AuthMain)
-local Stroke = Instance.new("UIStroke", AuthMain); Stroke.Color = Color3.fromRGB(212, 175, 55); Stroke.Thickness = 2
-
-local Title = Instance.new("TextLabel", AuthMain)
-Title.Size = UDim2.new(1, 0, 0, 40); Title.Text = "X-SYSTEM LOGIN ("..PlayerName..")"; Title.TextColor3 = Color3.fromRGB(212, 175, 55); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 14; Title.BackgroundTransparency = 1
-
-local PassInput = Instance.new("TextBox", AuthMain)
-PassInput.Size = UDim2.new(0.8, 0, 0, 35); PassInput.Position = UDim2.new(0.1, 0, 0.35, 0); PassInput.PlaceholderText = "NHẬP MẬT KHẨU..."; PassInput.Text = ""; PassInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40); PassInput.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", PassInput)
-
-local LoginBtn = Instance.new("TextButton", AuthMain)
-LoginBtn.Size = UDim2.new(0.8, 0, 0, 35); LoginBtn.Position = UDim2.new(0.1, 0, 0.65, 0); LoginBtn.Text = "XÁC NHẬN"; LoginBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 0); LoginBtn.TextColor3 = Color3.new(1, 1, 1); LoginBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", LoginBtn)
-
 -- [KIỂM TRA MẬT KHẨU LOGIN]
 LoginBtn.MouseButton1Click:Connect(function()
     if PassInput.Text == CORRECT_PASSWORD then 
-        AuthSG:Destroy() -- Xóa bỏ UI Đăng nhập sau khi thành công
-        StartScript()    -- Kích hoạt Menu Combat chính
+        StartScript() 
     else 
         PassInput.Text = ""
         PassInput.PlaceholderText = "SAI MẬT KHẨU!"
