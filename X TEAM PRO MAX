@@ -283,7 +283,7 @@ function StartScript()
 
     -- ==================== THIẾT KẾ GIAO DIỆN HÀNG DỌC (TAB 1) ====================
     local sec1 = Instance.new("Frame", Tab1); sec1.Size = UDim2.new(1,0,0,800); sec1.BackgroundTransparency = 1
-    local title1 = Instance.new("TextLabel", sec1); title1.Size = UDim2.new(1,0,0,25); title1.Text = "🚀 COMBAT"; title1.TextColor3 = Color3.fromRGB(255,255,255); title1.BackgroundTransparency = 1; title1.Font = Enum.Font.GothamBold
+    local title1 = Instance.new("TextLabel", sec1); title1.Size = UDim2.new(1,0,0,25); title1.Text = "🚀 MAIN COMBAT"; title1.TextColor3 = Color3.fromRGB(255,255,255); title1.BackgroundTransparency = 1; title1.Font = Enum.Font.GothamBold
 
     nameBox.Parent = sec1; nameBox.Size = UDim2.new(1,-10,0,35); nameBox.Position = UDim2.new(0,5,0,30); nameBox.PlaceholderText = "Nhập tên mục tiêu..."; nameBox.BackgroundColor3 = Color3.fromRGB(30,30,30); nameBox.TextColor3 = Color3.fromRGB(255,255,255); Instance.new("UICorner", nameBox)
 
@@ -304,9 +304,9 @@ function StartScript()
     CreateVerticalSetting("Trục vị trí X:", Config.OX, function(v) Config.OX = v end)
     CreateVerticalSetting("Trục vị trí Y:", Config.OY, function(v) Config.OY = v end)
     CreateVerticalSetting("Trục vị trí Z:", Config.OZ, function(v) Config.OZ = v end)
-    CreateVerticalSetting("Tốc độ xoay vòng tròn:", Config.ZZSpeed, function(v) Config.ZZSpeed = v end)
-    CreateVerticalSetting("Bán kính vòng tròn:", Config.ZZRange, function(v) Config.ZZRange = v end)
-    CreateVerticalSetting("Tốc độ lên xuống ZZ:", Config.ZZUpDownSpeed, function(v) Config.ZZUpDownSpeed = v end)
+    CreateVerticalSetting("Tốc độ zic zac:", Config.ZZSpeed, function(v) Config.ZZSpeed = v end)
+    CreateVerticalSetting("Bán kính vòng tròn :", Config.ZZRange, function(v) Config.ZZRange = v end)
+    CreateVerticalSetting("Tốc độ lên xuống zic zac:", Config.ZZUpDownSpeed, function(v) Config.ZZUpDownSpeed = v end)
 
     currentYPos = currentYPos + 5
     local tpBtn = Instance.new("TextButton", sec1); tpBtn.Size = UDim2.new(1,-10,0,42); tpBtn.Position = UDim2.new(0,5,0,currentYPos); tpBtn.Text = "TELEPORT LƠ LỬNG"; tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); tpBtn.TextColor3 = Color3.fromRGB(255,255,255); tpBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", tpBtn)
@@ -426,14 +426,14 @@ function StartScript()
     tpBtn.MouseButton1Click:Connect(function()
         local textName = nameBox.Text if textName == "" then return end
         IsTelePro = not IsTelePro 
-        if IsTelePro then tpBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0) tpBtn.Text = "ĐANG DÍ: " .. textName:upper()
-        else tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) tpBtn.Text = "TELEPORT LƠ LỬNG" if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.Velocity = Vector3.zero end end
+        if IsTelePro then tpBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0) tpBtn.Text = "ĐANG BÁM: " .. textName:upper()
+        else tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) tpBtn.Text = "TELEPORT PRO" if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.Velocity = Vector3.zero end end
     end)
 
     zzBtn.MouseButton1Click:Connect(function()
         local textName = nameBox.Text if textName == "" then return end
         isZicZac = not isZicZac
-        if isZicZac then zzBtn.BackgroundColor3 = Color3.fromRGB(230, 130, 0) zzBtn.Text = "ZIC XÁC PRO": BẬT" else zzBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) zzBtn.Text = "BẬT ZIC ZAC PRO" end
+        if isZicZac then zzBtn.BackgroundColor3 = Color3.fromRGB(230, 130, 0) zzBtn.Text = "ZIC ZAC PRO: BẬT" else zzBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) zzBtn.Text = "BẬT ZIC ZAC PRO" end
     end)
 
     escapeBtn.MouseButton1Click:Connect(function()
