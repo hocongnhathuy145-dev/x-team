@@ -4,7 +4,7 @@ local CORRECT_PASSWORD = "nhathuy1405"
 -- DANH SÁCH NGƯỜI ĐƯỢC PHÉP DÙNG SCRIPT (NHẬP TÊN ACCOUNT ROBLOX)
 local Whitelist = {
     ["L21_06"] = true, -- Thay bằng tên Roblox của bạn
-    ["zaidepnung02"] = true,     -- Thêm bạn bè vào đây
+    ["zaidepnung02"] = true,     -- Đã cập nhật theo yêu cầu
     ["Admin_X"] = true,
 }
 
@@ -59,10 +59,14 @@ function StartScript()
         uiParent = player:FindFirstChild("PlayerGui")
     end
 
-    local currentConnection = nil
     local globalEscapeConnection = nil 
     local hitboxConnection = nil
-    local isFollowing = false
+    
+    -- Các biến điều khiển trạng thái (Được đồng bộ với đoạn code mới của bạn)
+    local IsTelePro = false
+    local IsBringLoop = false
+    local IsNoclip = false
+    local AutoFarmActive = false
     local isZicZac = false 
 
     -- Cấu hình Config
@@ -87,7 +91,7 @@ function StartScript()
     -- Tìm Remote Combat
     local CombatRemote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatRemote") or game:GetService("ReplicatedStorage"):FindFirstChild("Combat") 
 
-    -- Trạng thái chuyển động
+    -- Trạng thái chuyển động escape
     local escapeTimer = 0
     local isEscaping = false
     local angle = 0 
@@ -220,16 +224,6 @@ function StartScript()
     local Tab2 = CreateTab("SETTINGS", 2)
 
     -- ==================== LOGIC GAMEPLAY ====================
-    local function GetPlayerByString(namePart)
-        namePart = namePart:lower()
-        for _, p in ipairs(Players:GetPlayers()) do
-            if p ~= player and (p.Name:lower():find(namePart) or p.DisplayName:lower():find(namePart)) then
-                return p
-            end
-        end
-        return nil
-    end
-
     local function IsWhitelisted(targetPlayer)
         if not targetPlayer then return false end
         return Config.Whitelist[targetPlayer.Name] == true
@@ -285,66 +279,57 @@ function StartScript()
         end
     end)
 
-    -- Noclip toàn bộ trạng thái di chuyển
+    -- ==================== ĐOẠN CODE TELEPORT & NOCLIP MỚI CỦA BẠN ====================
+    local nameBox = Instance.new("TextBox") -- Khởi tạo trước để luồng dưới đọc dữ liệu text
+    
     RunService.Stepped:Connect(function()
-        local myChar = player.Character
-        if myChar and (isFollowing or isEscaping) then
-            for _, part in ipairs(myChar:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide then
-                    part.CanCollide = false
+        local c = player.Character
+        if not c or not c:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = c.HumanoidRootPart
+        local s = nameBox.Text:lower()
+        local t = nil
+        
+        if s ~= "" and s ~= "nhập tên..." and s ~= "nhập tên mục tiêu..." then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player and (p.Name:lower():find(s) or p.DisplayName:lower():find(s)) then
+                    if not IsWhitelisted(p) then -- Kiểm tra whitelist hệ thống bảo vệ hữu nghị
+                        t = p; break
+                    end
+                end
+            end
+        end
+        
+        -- Logic ZicZac phụ trợ (Giữ lại từ bản cũ nếu bật ZZ)
+        local currentOX, currentOY, currentOZ = Config.OX, Config.OY, Config.OZ
+        if isZicZac and t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") then
+            zzAngle = zzAngle + (Config.ZZSpeed * 0.01)
+            local zigZagSine = math.sin(zzAngle * 5) * (Config.ZZRange * 0.4)
+            local currentRadius = Config.ZZRange + zigZagSine
+            currentOX = math.cos(zzAngle) * currentRadius
+            currentOZ = math.sin(zzAngle) * currentRadius
+        end
+        
+        if IsTelePro and not IsBringLoop and t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and not isEscaping then
+            local thrp = t.Character.HumanoidRootPart
+            local tp = thrp.CFrame * CFrame.new(currentOX, currentOY, currentOZ)
+            local dir = tp.Position - hrp.Position
+            local dist = dir.Magnitude
+            if dist > 20 then
+                hrp.Velocity = dir.Unit * 200
+            else
+                hrp.CFrame = tp
+                hrp.Velocity = Vector3.zero
+            end
+        end
+        
+        if IsNoclip or IsTelePro or AutoFarmActive or isEscaping then
+            for _, v in pairs(c:GetDescendants()) do
+                if v:IsA("BasePart") then
+                    v.CanCollide = false
                 end
             end
         end
     end)
-
-    -- ==================== HỆ THỐNG THEO DÕI VÀ KẾT HỢP ZIC ZAC XUNG QUANH ====================
-    local function startFollowingSystem(targetPlayer)
-        if currentConnection then currentConnection:Disconnect() end
-        
-        currentConnection = RunService.Heartbeat:Connect(function(deltaTime)
-            local myChar = player.Character
-            if not myChar or not myChar:FindFirstChild("HumanoidRootPart") or isEscaping then return end
-            
-            if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") or IsWhitelisted(targetPlayer) then
-                isFollowing = false
-                if tpBtn then tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) tpBtn.Text = "TELEPORT LƠ LỬNG" end
-                stopFollowingSystem()
-                return
-            end
-
-            local hrp = myChar.HumanoidRootPart
-            local targetHrp = targetPlayer.Character.HumanoidRootPart
-
-            if isFollowing then
-                if isZicZac then
-                    -- PHƯƠNG THỨC XOAY ZIC ZAC XUNG QUANH
-                    zzAngle = zzAngle + (Config.ZZSpeed * 0.1 * deltaTime)
-                    
-                    local zigZagSine = math.sin(zzAngle * 5) * (Config.ZZRange * 0.4)
-                    local currentRadius = Config.ZZRange + zigZagSine
-                    
-                    local offsetX = math.cos(zzAngle) * currentRadius
-                    local offsetZ = math.sin(zzAngle) * currentRadius
-                    
-                    hrp.CFrame = CFrame.new(targetHrp.Position.X + offsetX, targetHrp.Position.Y + Config.OY, targetHrp.Position.Z + offsetZ)
-                    hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                else
-                    -- TELEPORT LƠ LỬNG CỐ ĐỊNH BAN ĐẦU
-                    local goal = targetHrp.CFrame * CFrame.new(Config.OX, Config.OY, Config.OZ)
-                    hrp.CFrame = goal
-                    hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-                end
-            end
-        end)
-    end
-
-    function stopFollowingSystem()
-        if currentConnection then currentConnection:Disconnect() currentConnection = nil end
-        local myChar = player.Character
-        if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-            myChar.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
-        end
-    end
 
     -- Luồng tấn công từ xa liên tục
     task.spawn(function()
@@ -368,7 +353,8 @@ function StartScript()
     local title1 = Instance.new("TextLabel", sec1)
     title1.Size = UDim2.new(1,0,0,25); title1.Text = "🚀 MAIN AUTO COMBAT"; title1.TextColor3 = Color3.fromRGB(255,255,255); title1.BackgroundTransparency = 1; title1.Font = Enum.Font.GothamBold
 
-    local nameBox = Instance.new("TextBox", sec1)
+    -- Gán lại thuộc tính cho nameBox trùng với luồng xử lý
+    nameBox.Parent = sec1
     nameBox.Size = UDim2.new(1,-10,0,35); nameBox.Position = UDim2.new(0,5,0,30); nameBox.PlaceholderText = "Nhập tên mục tiêu..."; nameBox.BackgroundColor3 = Color3.fromRGB(30,30,30); nameBox.TextColor3 = Color3.fromRGB(255,255,255); Instance.new("UICorner", nameBox)
 
     -- Dòng thông số: [-] Bên trái | Ô nhập ở giữa | [+] Bên phải
@@ -450,11 +436,11 @@ function StartScript()
 
     currentYPos = currentYPos + 5
 
-    tpBtn = Instance.new("TextButton", sec1)
+    local tpBtn = Instance.new("TextButton", sec1)
     tpBtn.Size = UDim2.new(1,-10,0,42); tpBtn.Position = UDim2.new(0,5,0,currentYPos); tpBtn.Text = "TELEPORT LƠ LỬNG"; tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); tpBtn.TextColor3 = Color3.fromRGB(255,255,255); tpBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", tpBtn)
     currentYPos = currentYPos + 48
 
-    zzBtn = Instance.new("TextButton", sec1)
+    local zzBtn = Instance.new("TextButton", sec1)
     zzBtn.Size = UDim2.new(1,-10,0,42); zzBtn.Position = UDim2.new(0,5,0,currentYPos); zzBtn.Text = "BẬT CHẾ ĐỘ ZIC ZAC"; zzBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); zzBtn.TextColor3 = Color3.fromRGB(255,255,255); zzBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", zzBtn)
     currentYPos = currentYPos + 48
 
@@ -515,18 +501,18 @@ function StartScript()
     tpBtn.MouseButton1Click:Connect(function()
         local textName = nameBox.Text
         if textName == "" then return end
-        isFollowing = not isFollowing
+        IsTelePro = not IsTelePro -- Thay đổi trạng thái dí mục tiêu theo biến mới của bạn
         
-        if isFollowing then
-            local targetPlayer = GetPlayerByString(textName)
-            if not targetPlayer or IsWhitelisted(targetPlayer) then isFollowing = false return end
+        if IsTelePro then
             tpBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
-            tpBtn.Text = "ĐANG DÍ: " .. targetPlayer.Name:upper()
-            startFollowingSystem(targetPlayer)
+            tpBtn.Text = "ĐANG DÍ: " .. textName:upper()
         else
             tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) 
             tpBtn.Text = "TELEPORT LƠ LỬNG" 
-            stopFollowingSystem()
+            local c = player.Character
+            if c and c:FindFirstChild("HumanoidRootPart") then
+                c.HumanoidRootPart.Velocity = Vector3.zero
+            end
         end
     end)
 
@@ -538,11 +524,6 @@ function StartScript()
         if isZicZac then
             zzBtn.BackgroundColor3 = Color3.fromRGB(230, 130, 0) 
             zzBtn.Text = "ZZ ĐANG BẬT"
-            
-            local targetPlayer = GetPlayerByString(textName)
-            if isFollowing and targetPlayer and not IsWhitelisted(targetPlayer) then
-                startFollowingSystem(targetPlayer)
-            end
         else
             zzBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) 
             zzBtn.Text = "BẬT CHẾ ĐỘ ZIC ZAC"
@@ -581,20 +562,32 @@ function StartScript()
 
     addWlBtn.MouseButton1Click:Connect(function()
         local textName = whitelistBox.Text if textName == "" then return end
-        local target = GetPlayerByString(textName)
-        if target then Config.Whitelist[target.Name] = true UpdateWlStatus() whitelistBox.Text = "" end
+        -- Tìm kiếm nhanh mục tiêu để đưa vào whitelist bảo vệ
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and (p.Name:lower():find(textName:lower()) or p.DisplayName:lower():find(textName:lower())) then
+                Config.Whitelist[p.Name] = true
+                UpdateWlStatus()
+                whitelistBox.Text = ""
+                break
+            end
+        end
     end)
 
     removeWlBtn.MouseButton1Click:Connect(function()
         local textName = whitelistBox.Text if textName == "" then return end
-        local target = GetPlayerByString(textName)
-        if target and Config.Whitelist[target.Name] then
-            Config.Whitelist[target.Name] = nil
-            if target.Character then
-                local root = target.Character:FindFirstChild("HumanoidRootPart")
-                if root then root.Size = Vector3.new(2, 2, 1) root.Transparency = 1 end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and (p.Name:lower():find(textName:lower()) or p.DisplayName:lower():find(textName:lower())) then
+                if Config.Whitelist[p.Name] then
+                    Config.Whitelist[p.Name] = nil
+                    if p.Character then
+                        local root = p.Character:FindFirstChild("HumanoidRootPart")
+                        if root then root.Size = Vector3.new(2, 2, 1) root.Transparency = 1 end
+                    end
+                    UpdateWlStatus()
+                    whitelistBox.Text = ""
+                    break
+                end
             end
-            UpdateWlStatus() whitelistBox.Text = ""
         end
     end)
 
@@ -612,3 +605,4 @@ LoginBtn.MouseButton1Click:Connect(function()
         PassInput.PlaceholderText = "NHẬP LẠI MẬT KHẨU..." 
     end
 end)
+
