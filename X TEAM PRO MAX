@@ -1,0 +1,635 @@
+-- [[ CÀI ĐẶT BẢO MẬT & NGƯỜI DÙNG ]] --
+local CORRECT_PASSWORD = "nhathuy1405"
+
+-- DANH SÁCH NGƯỜI ĐƯỢC PHÉP DÙNG SCRIPT (NHẬP TÊN ACCOUNT ROBLOX)
+local Whitelist = {
+    ["L21_06"] = true, -- Thay bằng tên Roblox của bạn
+    ["zaidepnung02"] = true,     -- Thêm bạn bè vào đây
+    ["Admin_X"] = true,
+}
+
+local Player = game.Players.LocalPlayer
+local PlayerName = Player.Name
+
+-- KIỂM TRA QUYỀN TRUY CẬP (WHITELIST)
+if not Whitelist[PlayerName] then
+    Player:Kick("BẠN KHÔNG CÓ TRONG DANH SÁCH WHITELIST CỦA X-SYSTEM!")
+    return
+end
+
+-- Khai báo hàm chạy Script chính sau khi Login thành công
+local function StartScript()
+    -- ==================== SERVICES ====================
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local CoreGui = game:GetService("CoreGui")
+
+    local player = Players.LocalPlayer
+
+    -- Kiểm tra và lấy UI Parent an toàn
+    local uiParent = nil
+    local success, err = pcall(function()
+        if CoreGui and CoreGui:FindFirstChild("RobloxGui") then
+            uiParent = CoreGui
+        end
+    end)
+
+    if not uiParent then
+        repeat task.wait(0.1) until player:FindFirstChild("PlayerGui")
+        uiParent = player:FindFirstChild("PlayerGui")
+    end
+
+    local currentConnection = nil
+    local globalEscapeConnection = nil 
+    local hitboxConnection = nil
+    local noclipConnection = nil
+    local isFollowing = false
+    local isZicZac = false 
+
+    -- Cấu hình Config
+    local Config = {
+        IsAutoClick = false,
+        IsAutoReblock = false,
+        IsAutoEscape = false, 
+        IsHitboxExtend = false, 
+        HitboxSize = 15,        
+        Whitelist = {},         
+        OX = 0,
+        OY = 10,
+        OZ = 0,
+        ZZSpeed = 50,             
+        ZZRange = 15,             
+        DefaultEscapeHeight = 500, 
+        CircleRadius = 25,        
+        CircleSpeed = 16,         
+        EscapeDuration = 3.0      
+    }
+
+    -- Tìm Remote Combat
+    local CombatRemote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatRemote") or game:GetService("ReplicatedStorage"):FindFirstChild("Combat") 
+
+    -- Trạng thái chuyển động
+    local escapeTimer = 0
+    local isEscaping = false
+    local angle = 0 
+    local zzAngle = 0 
+    local targetEscapeY = 500 
+
+    local lastHealth = 100
+    local function CheckHitboxAndBlock()
+        local char = player.Character
+        if not char then return false end
+        
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            if humanoid.Health < lastHealth then
+                lastHealth = humanoid.Health
+                return true
+            end
+            lastHealth = humanoid.Health
+        end
+        
+        if char:GetAttribute("Stunned") or char:GetAttribute("GuardBroken") or char:GetAttribute("Ragdoll") then
+            return true
+        end
+        if char:FindFirstChild("Stun") or char:FindFirstChild("GuardBreak") then
+            return true
+        end
+        
+        return false
+    end
+
+    -- ==================== HÀM KÉO GUI ====================
+    local function MakeDraggable(gui)
+        local dragging = false
+        local dragStart, startPos
+
+        gui.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+                dragStart = input.Position
+                startPos = gui.Position
+            end
+        end)
+
+        gui.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = false
+            end
+        end)
+
+        UserInputService.InputChanged:Connect(function(input)
+            if dragging and input.UserInputType == Enum.UserInputType.MouseMovement then
+                local delta = input.Position - dragStart
+                gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            end
+        end)
+    end
+
+    -- ==================== DỌN DẸP GUI CŨ THỪA ====================
+    if uiParent:FindFirstChild("SpamCombatGui") then
+        uiParent:FindFirstChild("SpamCombatGui"):Destroy()
+    end
+
+    -- Khởi tạo ScreenGui mới
+    local SG = Instance.new("ScreenGui", uiParent)
+    SG.Name = "SpamCombatGui"
+    SG.ResetOnSpawn = false 
+
+    local Toggle = Instance.new("TextButton", SG)
+    Toggle.Size = UDim2.new(0, 50, 0, 50)
+    Toggle.Position = UDim2.new(0, 10, 0.5, -25)
+    Toggle.Text = "X"
+    Toggle.BackgroundColor3 = Color3.fromRGB(120, 0, 0) 
+    Toggle.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Toggle.Font = Enum.Font.GothamBlack
+    Toggle.TextSize = 25
+    Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
+
+    local Main = Instance.new("Frame", SG)
+    Main.Size = UDim2.new(0, 310, 0, 600) 
+    Main.Position = UDim2.new(0.5, -155, 0.5, -300)
+    Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    Main.Visible = true 
+    Main.Active = true
+    Instance.new("UICorner", Main)
+    Instance.new("UIStroke", Main).Color = Color3.fromRGB(212, 175, 55)
+    MakeDraggable(Main)
+
+    local TabContainer = Instance.new("Frame", Main)
+    TabContainer.Size = UDim2.new(1, 0, 0, 35)
+    TabContainer.Position = UDim2.new(0, 0, 0, 10)
+    TabContainer.BackgroundTransparency = 1
+
+    local Frames = {}
+    local Buttons = {}
+
+    local function CreateTab(name, id)
+        local b = Instance.new("TextButton", TabContainer)
+        b.Size = UDim2.new(0, 110, 0, 30)
+        b.Position = UDim2.new(0, (id-1)*120 + 20, 0, 0)
+        b.Text = name
+        b.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+        b.TextColor3 = Color3.fromRGB(255, 255, 255)
+        b.Font = Enum.Font.GothamBold
+        b.TextSize = 11
+        Instance.new("UICorner", b)
+
+        local f = Instance.new("ScrollingFrame", Main)
+        f.Size = UDim2.new(1, -20, 1, -70)
+        f.Position = UDim2.new(0, 10, 0, 50)
+        f.Visible = (id == 1)
+        f.BackgroundTransparency = 1
+        f.ScrollBarThickness = 3
+        f.CanvasSize = UDim2.new(0, 0, 0, 0)
+        f.AutomaticCanvasSize = Enum.AutomaticSize.Y
+        
+        local listLayout = Instance.new("UIListLayout", f)
+        listLayout.Padding = UDim.new(0, 8)
+        listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+        
+        Frames[id] = f
+        Buttons[id] = b
+        if id == 1 then b.BackgroundColor3 = Color3.fromRGB(120, 0, 0) end
+
+        b.MouseButton1Click:Connect(function()
+            for i, frame in pairs(Frames) do
+                frame.Visible = (i == id)
+                Buttons[i].BackgroundColor3 = (i == id) and Color3.fromRGB(120, 0, 0) or Color3.fromRGB(45, 45, 45)
+            end
+        end)
+        return f
+    end
+
+    local Tab1 = CreateTab("COMBAT", 1)
+    local Tab2 = CreateTab("SETTINGS", 2)
+
+    -- ==================== LOGIC GAMEPLAY ====================
+    local function GetPlayerByString(namePart)
+        namePart = namePart:lower()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and (p.Name:lower():find(namePart) or p.DisplayName:lower():find(namePart)) then
+                return p
+            end
+        end
+        return nil
+    end
+
+    local function IsWhitelisted(targetPlayer)
+        if not targetPlayer then return false end
+        return Config.Whitelist[targetPlayer.Name] == true
+    end
+
+    -- Hitbox rộng
+    if hitboxConnection then hitboxConnection:Disconnect() end
+    hitboxConnection = RunService.RenderStepped:Connect(function()
+        if not Config.IsHitboxExtend then return end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and not IsWhitelisted(p) then
+                local root = p.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    root.Size = Vector3.new(Config.HitboxSize, Config.HitboxSize, Config.HitboxSize)
+                    root.Transparency = 0.7
+                    root.Color = Color3.fromRGB(212, 175, 55)
+                    root.CanCollide = false
+                end
+            elseif p.Character and IsWhitelisted(p) then
+                local root = p.Character:FindFirstChild("HumanoidRootPart")
+                if root then root.Size = Vector3.new(2, 2, 1) root.Transparency = 1 end
+            end
+        end
+    end)
+
+    -- Luồng Escape Siêu Tốc Không Khựng
+    if globalEscapeConnection then globalEscapeConnection:Disconnect() end
+    globalEscapeConnection = RunService.Heartbeat:Connect(function(deltaTime)
+        local myChar = player.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = myChar.HumanoidRootPart
+
+        if Config.IsAutoEscape and CheckHitboxAndBlock() and not isEscaping then
+            isEscaping = true
+            escapeTimer = Config.EscapeDuration 
+            
+            local currentY = hrp.Position.Y
+            targetEscapeY = (currentY >= 500) and (currentY + 500) or Config.DefaultEscapeHeight
+            
+            hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+            hrp.CFrame = CFrame.new(hrp.Position.X, targetEscapeY, hrp.Position.Z)
+        end
+
+        if isEscaping then
+            escapeTimer = escapeTimer - deltaTime
+            if escapeTimer > 0 then
+                angle = angle + (Config.CircleSpeed * deltaTime)
+                local offsetX = math.cos(angle) * Config.CircleRadius
+                local offsetZ = math.sin(angle) * Config.CircleRadius
+                
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                hrp.CFrame = CFrame.new(hrp.Position.X + offsetX, targetEscapeY, hrp.Position.Z + offsetZ)
+            else
+                isEscaping = false 
+                hrp.Anchored = false
+            end
+        end
+    end)
+
+    -- Noclip toàn bộ trạng thái di chuyển
+    if noclipConnection then noclipConnection:Disconnect() end
+    noclipConnection = RunService.Stepped:Connect(function()
+        local myChar = player.Character
+        if myChar and (isFollowing or isEscaping) then
+            for _, part in ipairs(myChar:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+    end)
+
+    -- ==================== HỆ THỐNG THEO DÕI VÀ KẾT HỢP ZIC ZAC XUNG QUANH ====================
+    local tpBtn
+    local zzBtn
+
+    local function stopFollowingSystem()
+        if currentConnection then currentConnection:Disconnect() currentConnection = nil end
+        local myChar = player.Character
+        if myChar and myChar:FindFirstChild("HumanoidRootPart") then
+            myChar.HumanoidRootPart.Anchored = false
+            myChar.HumanoidRootPart.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+            myChar.HumanoidRootPart.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+        end
+    end
+
+    local function startFollowingSystem(targetPlayer)
+        if currentConnection then currentConnection:Disconnect() end
+        
+        currentConnection = RunService.Heartbeat:Connect(function(deltaTime)
+            local myChar = player.Character
+            if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+            local hrp = myChar.HumanoidRootPart
+            
+            if isEscaping then 
+                hrp.Anchored = false
+                return 
+            end
+            
+            if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") or IsWhitelisted(targetPlayer) then
+                isFollowing = false
+                if tpBtn then tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) tpBtn.Text = "TELEPORT LƠ LỬNG" end
+                stopFollowingSystem()
+                return
+            end
+
+            local targetHrp = targetPlayer.Character.HumanoidRootPart
+
+            if isFollowing then
+                hrp.AssemblyLinearVelocity = Vector3.new(0, 0, 0)
+                hrp.AssemblyAngularVelocity = Vector3.new(0, 0, 0)
+                
+                if isZicZac then
+                    zzAngle = zzAngle + (Config.ZZSpeed * 0.1 * deltaTime)
+                    local zigZagSine = math.sin(zzAngle * 5) * (Config.ZZRange * 0.4)
+                    local currentRadius = Config.ZZRange + zigZagSine
+                    
+                    local offsetX = math.cos(zzAngle) * currentRadius
+                    local offsetZ = math.sin(zzAngle) * currentRadius
+                    
+                    hrp.CFrame = CFrame.new(targetHrp.Position.X + offsetX, targetHrp.Position.Y + Config.OY, targetHrp.Position.Z + offsetZ)
+                else
+                    local goal = targetHrp.CFrame * CFrame.new(Config.OX, Config.OY, Config.OZ)
+                    hrp.CFrame = goal
+                end
+            end
+        end)
+    end
+
+    -- Luồng tấn công từ xa liên tục
+    task.spawn(function()
+        while task.wait(0.05) do 
+            pcall(function()
+                if Config.IsAutoClick and CombatRemote then 
+                    CombatRemote:FireServer("M1") 
+                    CombatRemote:FireServer("M2") 
+                end
+                if Config.IsAutoReblock and CombatRemote then 
+                    CombatRemote:FireServer("Block", true) 
+                end
+            end)
+        end
+    end)
+
+    -- ==================== THIẾT KẾ GIAO DIỆN HÀNG DỌC (TAB 1) ====================
+    local sec1 = Instance.new("Frame", Tab1)
+    sec1.Size = UDim2.new(1, 0, 0, 680); sec1.BackgroundTransparency = 1
+
+    local title1 = Instance.new("TextLabel", sec1)
+    title1.Size = UDim2.new(1,0,0,25); title1.Text = "🚀 MAIN AUTO COMBAT"; title1.TextColor3 = Color3.fromRGB(255,255,255); title1.BackgroundTransparency = 1; title1.Font = Enum.Font.GothamBold
+
+    local nameBox = Instance.new("TextBox", sec1)
+    nameBox.Size = UDim2.new(1,-10,0,35); nameBox.Position = UDim2.new(0,5,0,30); nameBox.PlaceholderText = "Nhập tên mục tiêu..."; nameBox.BackgroundColor3 = Color3.fromRGB(30,30,30); nameBox.TextColor3 = Color3.fromRGB(255,255,255); Instance.new("UICorner", nameBox)
+
+    local currentYPos = 75
+    local function CreateVerticalSetting(labelName, defaultValue, updateCallback)
+        local rowFrame = Instance.new("Frame", sec1)
+        rowFrame.Size = UDim2.new(1, -10, 0, 32)
+        rowFrame.Position = UDim2.new(0, 5, 0, currentYPos)
+        rowFrame.BackgroundTransparency = 1
+
+        local lbl = Instance.new("TextLabel", rowFrame)
+        lbl.Size = UDim2.new(0.42, 0, 1, 0)
+        lbl.Text = labelName
+        lbl.TextColor3 = Color3.fromRGB(220, 220, 220)
+        lbl.Font = Enum.Font.GothamSemibold
+        lbl.TextSize = 11
+        lbl.TextXAlignment = Enum.TextXAlignment.Left
+        lbl.BackgroundTransparency = 1
+
+        local btnMinus = Instance.new("TextButton", rowFrame)
+        btnMinus.Size = UDim2.new(0.14, -4, 1, 0)
+        btnMinus.Position = UDim2.new(0.42, 2, 0, 0)
+        btnMinus.Text = "-"
+        btnMinus.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+        btnMinus.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btnMinus.Font = Enum.Font.GothamBlack
+        btnMinus.TextSize = 16
+        Instance.new("UICorner", btnMinus)
+
+        local box = Instance.new("TextBox", rowFrame)
+        box.Size = UDim2.new(0.3, -8, 1, 0)
+        box.Position = UDim2.new(0.56, 4, 0, 0)
+        box.Text = tostring(defaultValue)
+        box.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+        box.TextColor3 = Color3.fromRGB(255, 255, 255)
+        box.Font = Enum.Font.GothamBold
+        box.TextSize = 12
+        Instance.new("UICorner", box)
+
+        local btnPlus = Instance.new("TextButton", rowFrame)
+        btnPlus.Size = UDim2.new(0.14, -4, 1, 0)
+        btnPlus.Position = UDim2.new(0.86, 2, 0, 0)
+        btnPlus.Text = "+"
+        btnPlus.BackgroundColor3 = Color3.fromRGB(40, 150, 40)
+        btnPlus.TextColor3 = Color3.fromRGB(255, 255, 255)
+        btnPlus.Font = Enum.Font.GothamBlack
+        btnPlus.TextSize = 16
+        Instance.new("UICorner", btnPlus)
+
+        local function applyValue(val)
+            box.Text = tostring(val)
+            updateCallback(val)
+        end
+
+        box:GetPropertyChangedSignal("Text"):Connect(function()
+            local n = tonumber(box.Text)
+            if n then updateCallback(n) end
+        end)
+
+        btnMinus.MouseButton1Click:Connect(function()
+            local current = tonumber(box.Text) or defaultValue
+            applyValue(current - 2)
+        end)
+
+        btnPlus.MouseButton1Click:Connect(function()
+            local current = tonumber(box.Text) or defaultValue
+            applyValue(current + 2)
+        end)
+
+        currentYPos = currentYPos + 38
+    end
+
+    CreateVerticalSetting("Trục vị trí X:", Config.OX, function(v) Config.OX = v end)
+    CreateVerticalSetting("Trục vị trí Y:", Config.OY, function(v) Config.OY = v end)
+    CreateVerticalSetting("Trục vị trí Z:", Config.OZ, function(v) Config.OZ = v end)
+    CreateVerticalSetting("Tốc độ Zic Zac (ZZ):", Config.ZZSpeed, function(v) Config.ZZSpeed = v end)
+    CreateVerticalSetting("Khoảng cách ZZ:", Config.ZZRange, function(v) Config.ZZRange = v end)
+
+    currentYPos = currentYPos + 5
+
+    tpBtn = Instance.new("TextButton", sec1)
+    tpBtn.Size = UDim2.new(1,-10,0,42); tpBtn.Position = UDim2.new(0,5,0,currentYPos); tpBtn.Text = "TELEPORT LƠ LỬNG"; tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); tpBtn.TextColor3 = Color3.fromRGB(255,255,255); tpBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", tpBtn)
+    currentYPos = currentYPos + 48
+
+    zzBtn = Instance.new("TextButton", sec1)
+    zzBtn.Size = UDim2.new(1,-10,0,42); zzBtn.Position = UDim2.new(0,5,0,currentYPos); zzBtn.Text = "BẬT CHẾ ĐỘ ZIC ZAC"; zzBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); zzBtn.TextColor3 = Color3.fromRGB(255,255,255); zzBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", zzBtn)
+    currentYPos = currentYPos + 48
+
+    local escapeBtn = Instance.new("TextButton", sec1)
+    escapeBtn.Size = UDim2.new(1,-10,0,42); escapeBtn.Position = UDim2.new(0,5,0,currentYPos); escapeBtn.Text = "BẬT AUTO ESCAPE XOAY VÒNG"; escapeBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); escapeBtn.TextColor3 = Color3.fromRGB(255,255,255); escapeBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", escapeBtn)
+    currentYPos = currentYPos + 48
+
+    local m1m2Btn = Instance.new("TextButton", sec1)
+    m1m2Btn.Size = UDim2.new(1,-10,0,42); m1m2Btn.Position = UDim2.new(0,5,0,currentYPos); m1m2Btn.Text = "BẬT AUTO M1 + M2 (REMOTE)"; m1m2Btn.BackgroundColor3 = Color3.fromRGB(60,60,60); m1m2Btn.TextColor3 = Color3.fromRGB(255,255,255); m1m2Btn.Font = Enum.Font.GothamBold; Instance.new("UICorner", m1m2Btn)
+    currentYPos = currentYPos + 48
+
+    local blockBtn = Instance.new("TextButton", sec1)
+    blockBtn.Size = UDim2.new(1,-10,0,42); blockBtn.Position = UDim2.new(0,5,0,currentYPos); blockBtn.Text = "BẬT AUTO BLOCK (REMOTE)"; blockBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); blockBtn.TextColor3 = Color3.fromRGB(255,255,255); blockBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", blockBtn)
+
+    sec1.Size = UDim2.new(1, 0, 0, currentYPos + 45)
+
+    -- ==================== GIAO DIỆN PHẦN TỬ (TAB 2) ====================
+    local sec2 = Instance.new("Frame", Tab2)
+    sec2.Size = UDim2.new(1,0,0,450); sec2.BackgroundTransparency = 1
+
+    local title2 = Instance.new("TextLabel", sec2)
+    title2.Size = UDim2.new(1,0,0,30); title2.Text = "🛠️ HITBOX & WHITELIST"; title2.TextColor3 = Color3.fromRGB(255,255,255); title2.BackgroundTransparency = 1; title2.Font = Enum.Font.GothamBold
+
+    local hitboxToggleBtn = Instance.new("TextButton", sec2)
+    hitboxToggleBtn.Size = UDim2.new(1,-10,0,45); hitboxToggleBtn.Position = UDim2.new(0,5,0,35); hitboxToggleBtn.Text = "BẬT KÉO TÂM HITBOX"; hitboxToggleBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); hitboxToggleBtn.TextColor3 = Color3.fromRGB(255,255,255); hitboxToggleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", hitboxToggleBtn)
+
+    local sizeLabel = Instance.new("TextLabel", sec2)
+    sizeLabel.Size = UDim2.new(1,-10,0,20); sizeLabel.Position = UDim2.new(0,5,0,85); sizeLabel.Text = "Nhập kích thước Hitbox (Mặc định: 15):"; sizeLabel.TextColor3 = Color3.fromRGB(200,200,200); sizeLabel.BackgroundTransparency = 1; sizeLabel.TextSize = 12
+
+    local hitboxSizeBox = Instance.new("TextBox", sec2)
+    hitboxSizeBox.Size = UDim2.new(1,-10,0,35); hitboxSizeBox.Position = UDim2.new(0,5,0,105); hitboxSizeBox.Text = "15"; hitboxSizeBox.BackgroundColor3 = Color3.fromRGB(30,30,30); hitboxSizeBox.TextColor3 = Color3.fromRGB(255,255,255); Instance.new("UICorner", hitboxSizeBox)
+
+    local wlLine = Instance.new("Frame", sec2)
+    wlLine.Size = UDim2.new(1,-10,0,2); wlLine.Position = UDim2.new(0,5,0,155); wlLine.BackgroundColor3 = Color3.fromRGB(45,45,45)
+
+    local wlLabel = Instance.new("TextLabel", sec2)
+    wlLabel.Size = UDim2.new(1,-10,0,20); wlLabel.Position = UDim2.new(0,5,0,165); wlLabel.Text = "🛡️ DANH SÁCH LOẠI TRỪ (WHITELIST)"; wlLabel.TextColor3 = Color3.fromRGB(212,175,55); wlLabel.BackgroundTransparency = 1; wlLabel.Font = Enum.Font.GothamBold; wlLabel.TextSize = 12
+
+    local whitelistBox = Instance.new("TextBox", sec2)
+    whitelistBox.Size = UDim2.new(1,-10,0,40); whitelistBox.Position = UDim2.new(0,5,0,190); whitelistBox.PlaceholderText = "Nhập tên người cần loại trừ..."; whitelistBox.BackgroundColor3 = Color3.fromRGB(30,30,30); whitelistBox.TextColor3 = Color3.fromRGB(255,255,255); Instance.new("UICorner", whitelistBox)
+
+    local addWlBtn = Instance.new("TextButton", sec2)
+    addWlBtn.Size = UDim2.new(0.46,0,0,40); addWlBtn.Position = UDim2.new(0,5,0,240); addWlBtn.Text = "THÊM BẢO VỆ"; addWlBtn.BackgroundColor3 = Color3.fromRGB(0,100,0); addWlBtn.TextColor3 = Color3.fromRGB(255,255,255); addWlBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", addWlBtn)
+
+    local removeWlBtn = Instance.new("TextButton", sec2)
+    removeWlBtn.Size = UDim2.new(0.46,0,0,40); removeWlBtn.Position = UDim2.new(0.54,-5,0,240); removeWlBtn.Text = "XÓA KHỎI WL"; removeWlBtn.BackgroundColor3 = Color3.fromRGB(100,0,0); removeWlBtn.TextColor3 = Color3.fromRGB(255,255,255); removeWlBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", removeWlBtn)
+
+    local wlStatusLabel = Instance.new("TextLabel", sec2)
+    wlStatusLabel.Size = UDim2.new(1,-10,0,40); wlStatusLabel.Position = UDim2.new(0,5,0,290); wlStatusLabel.Text = "Chưa có ai trong danh sách Whitelist."; wlStatusLabel.TextColor3 = Color3.fromRGB(150,150,150); wlStatusLabel.BackgroundTransparency = 1; wlStatusLabel.TextWrapped = true; wlStatusLabel.TextSize = 11
+
+    hitboxSizeBox:GetPropertyChangedSignal("Text"):Connect(function() Config.HitboxSize = tonumber(hitboxSizeBox.Text) or 15 end)
+
+    local function UpdateWlStatus()
+        local list = {}
+        for name, _ in pairs(Config.Whitelist) do table.insert(list, name) end
+        wlStatusLabel.Text = (#list == 0) and "Chưa có ai trong danh sách Whitelist." or "Đang loại trừ: " .. table.concat(list, ", ")
+    end
+
+    -- ==================== KẾT NỐI TƯƠNG TÁC BUTTONS ====================
+    tpBtn.MouseButton1Click:Connect(function()
+        local textName = nameBox.Text
+        if textName == "" then return end
+        isFollowing = not isFollowing
+        
+        if isFollowing then
+            local targetPlayer = GetPlayerByString(textName)
+            if not targetPlayer or IsWhitelisted(targetPlayer) then isFollowing = false return end
+            tpBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+            tpBtn.Text = "ĐANG DÍ: " .. targetPlayer.Name:upper()
+            startFollowingSystem(targetPlayer)
+        else
+            tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) 
+            tpBtn.Text = "TELEPORT LƠ LỬNG" 
+            stopFollowingSystem()
+        end
+    end)
+
+    zzBtn.MouseButton1Click:Connect(function()
+        local textName = nameBox.Text
+        if textName == "" then return end
+        isZicZac = not isZicZac
+
+        if isZicZac then
+            zzBtn.BackgroundColor3 = Color3.fromRGB(230, 130, 0) 
+            zzBtn.Text = "ZZ ĐANG BẬT"
+            
+            local targetPlayer = GetPlayerByString(textName)
+            if isFollowing and targetPlayer and not IsWhitelisted(targetPlayer) then
+                startFollowingSystem(targetPlayer)
+            end
+        else
+            zzBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) 
+            zzBtn.Text = "BẬT CHẾ ĐỘ ZIC ZAC"
+        end
+    end)
+
+    escapeBtn.MouseButton1Click:Connect(function()
+        Config.IsAutoEscape = not Config.IsAutoEscape
+        escapeBtn.BackgroundColor3 = Config.IsAutoEscape and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60,60,60)
+        escapeBtn.Text = Config.IsAutoEscape and "ĐANG BẬT ESCAPE XOAY VÒNG" or "BẬT AUTO ESCAPE XOAY VÒNG"
+    end)
+
+    m1m2Btn.MouseButton1Click:Connect(function()
+        Config.IsAutoClick = not Config.IsAutoClick
+        m1m2Btn.BackgroundColor3 = Config.IsAutoClick and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60,60,60)
+    end)
+
+    blockBtn.MouseButton1Click:Connect(function()
+        Config.IsAutoReblock = not Config.IsAutoReblock
+        blockBtn.BackgroundColor3 = Config.IsAutoReblock and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60,60,60)
+    end)
+
+    hitboxToggleBtn.MouseButton1Click:Connect(function()
+        Config.IsHitboxExtend = not Config.IsHitboxExtend
+        hitboxToggleBtn.BackgroundColor3 = Config.IsHitboxExtend and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60,60,60)
+        hitboxToggleBtn.Text = Config.IsHitboxExtend and "ĐANG BẬT KÉO TÂM HITBOX" or "BẬT KÉO TÂM HITBOX"
+        if not Config.IsHitboxExtend then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Character then
+                    local root = p.Character:FindFirstChild("HumanoidRootPart")
+                    if root then root.Size = Vector3.new(2, 2, 1) root.Transparency = 1 end
+                end
+            end
+        end
+    end)
+
+    addWlBtn.MouseButton1Click:Connect(function()
+        local textName = whitelistBox.Text if textName == "" then return end
+        local target = GetPlayerByString(textName)
+        if target then Config.Whitelist[target.Name] = true UpdateWlStatus() whitelistBox.Text = "" end
+    end)
+
+    removeWlBtn.MouseButton1Click:Connect(function()
+        local textName = whitelistBox.Text if textName == "" then return end
+        local target = GetPlayerByString(textName)
+        if target and Config.Whitelist[target.Name] then
+            Config.Whitelist[target.Name] = nil
+            if target.Character then
+                local root = target.Character:FindFirstChild("HumanoidRootPart")
+                if root then root.Size = Vector3.new(2, 2, 1) root.Transparency = 1 end
+            end
+            UpdateWlStatus() whitelistBox.Text = ""
+        end
+    end)
+
+    Toggle.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+end
+
+-- PHẦN UI LOGIN (CHỈ HIỆN KHI CÓ TRONG WHITELIST)
+local CoreGui = game:GetService("CoreGui")
+local AuthSG = Instance.new("ScreenGui", CoreGui)
+AuthSG.Name = "XSystemAuthGui"
+AuthSG.ResetOnSpawn = false
+
+local AuthMain = Instance.new("Frame", AuthSG)
+AuthMain.Size = UDim2.new(0, 300, 0, 150); AuthMain.Position = UDim2.new(0.5, -150, 0.5, -75); AuthMain.BackgroundColor3 = Color3.fromRGB(20, 20, 20); Instance.new("UICorner", AuthMain)
+local Stroke = Instance.new("UIStroke", AuthMain); Stroke.Color = Color3.fromRGB(212, 175, 55); Stroke.Thickness = 2
+
+local Title = Instance.new("TextLabel", AuthMain)
+Title.Size = UDim2.new(1, 0, 0, 40); Title.Text = "X-SYSTEM LOGIN ("..PlayerName..")"; Title.TextColor3 = Color3.fromRGB(212, 175, 55); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 14; Title.BackgroundTransparency = 1
+
+local PassInput = Instance.new("TextBox", AuthMain)
+PassInput.Size = UDim2.new(0.8, 0, 0, 35); PassInput.Position = UDim2.new(0.1, 0, 0.35, 0); PassInput.PlaceholderText = "NHẬP MẬT KHẨU..."; PassInput.Text = ""; PassInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40); PassInput.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", PassInput)
+
+local LoginBtn = Instance.new("TextButton", AuthMain)
+LoginBtn.Size = UDim2.new(0.8, 0, 0, 35); LoginBtn.Position = UDim2.new(0.1, 0, 0.65, 0); LoginBtn.Text = "XÁC NHẬN"; LoginBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 0); LoginBtn.TextColor3 = Color3.new(1, 1, 1); LoginBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", LoginBtn)
+
+-- [KIỂM TRA MẬT KHẨU LOGIN]
+LoginBtn.MouseButton1Click:Connect(function()
+    if PassInput.Text == CORRECT_PASSWORD then 
+        AuthSG:Destroy() -- Xóa bỏ UI Đăng nhập sau khi thành công
+        StartScript()    -- Kích hoạt Menu Combat chính
+    else 
+        PassInput.Text = ""
+        PassInput.PlaceholderText = "SAI MẬT KHẨU!"
+        task.wait(1)
+        PassInput.PlaceholderText = "NHẬP LẠI MẬT KHẨU..." 
+    end
+end)
