@@ -1,1 +1,669 @@
+-- [[ CÀI ĐẶT BẢO MẬT & NGƯỜI DÙNG ]] --
+local CORRECT_PASSWORD = "nhathuy1405"
 
+local Whitelist = {
+    ["L21_06"] = true,
+    ["zaidepnung02"] = true,
+    ["Admin_X"] = true,
+}
+
+local Player = game.Players.LocalPlayer
+local PlayerName = Player.Name
+
+if not Whitelist[PlayerName] then
+    Player:Kick("BẠN KHÔNG CÓ TRONG DANH SÁCH WHITELIST CỦA X-SYSTEM!")
+    return
+end
+
+local CoreGui = game:GetService("CoreGui")
+if CoreGui:FindFirstChild("AuthSG_XSystem") then
+    CoreGui:FindFirstChild("AuthSG_XSystem"):Destroy()
+end
+
+local AuthSG = Instance.new("ScreenGui", CoreGui)
+AuthSG.Name = "AuthSG_XSystem"
+AuthSG.ResetOnSpawn = false
+
+local AuthMain = Instance.new("Frame", AuthSG)
+AuthMain.Size = UDim2.new(0, 300, 0, 150); AuthMain.Position = UDim2.new(0.5, -150, 0.5, -75); AuthMain.BackgroundColor3 = Color3.fromRGB(20, 20, 20); Instance.new("UICorner", AuthMain)
+local Stroke = Instance.new("UIStroke", AuthMain); Stroke.Color = Color3.fromRGB(212, 175, 55); Stroke.Thickness = 2
+
+local Title = Instance.new("TextLabel", AuthMain)
+Title.Size = UDim2.new(1, 0, 0, 40); Title.Text = "X-SYSTEM LOGIN ("..PlayerName..")"; Title.TextColor3 = Color3.fromRGB(212, 175, 55); Title.Font = "GothamBlack"; Title.TextSize = 14; Title.BackgroundTransparency = 1
+
+local PassInput = Instance.new("TextBox", AuthMain)
+PassInput.Size = UDim2.new(0.8, 0, 0, 35); PassInput.Position = UDim2.new(0.1, 0, 0.35, 0); PassInput.PlaceholderText = "NHẬP MẬT KHẨU..."; PassInput.Text = ""; PassInput.BackgroundColor3 = Color3.fromRGB(40, 40, 40); PassInput.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", PassInput)
+
+local LoginBtn = Instance.new("TextButton", AuthMain)
+LoginBtn.Size = UDim2.new(0.8, 0, 0, 35); LoginBtn.Position = UDim2.new(0.1, 0, 0.65, 0); LoginBtn.Text = "XÁC NHẬN"; LoginBtn.BackgroundColor3 = Color3.fromRGB(0, 100, 0); LoginBtn.TextColor3 = Color3.new(1, 1, 1); LoginBtn.Font = "GothamBold"; Instance.new("UICorner", LoginBtn)
+
+-- ==================== HÀM KHỞI CHẠY SCRIPT CHÍNH ====================
+function StartScript()
+    AuthSG:Destroy()
+
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local TweenService = game:GetService("TweenService")
+    local CoreGui = game:GetService("CoreGui")
+
+    local player = Players.LocalPlayer
+
+    local uiParent = nil
+    pcall(function() if CoreGui then uiParent = CoreGui end end)
+    if not uiParent then
+        repeat task.wait(0.1) until player:FindFirstChild("PlayerGui")
+        uiParent = player:FindFirstChild("PlayerGui")
+    end
+    if not uiParent then return end
+
+    if uiParent:FindFirstChild("SpamCombatGui") then uiParent:FindFirstChild("SpamCombatGui"):Destroy() end
+
+    local SG = Instance.new("ScreenGui", uiParent)
+    SG.Name = "SpamCombatGui"
+    SG.ResetOnSpawn = false 
+
+    local globalEscapeConnection = nil 
+    local hitboxConnection = nil
+    
+    local IsTelePro = false
+    local IsBringLoop = false
+    local IsNoclip = false
+    local AutoFarmActive = false
+    local isZicZac = false 
+
+    -- Cấu hình hệ thống
+    local Config = {
+        IsAutoClick = false,
+        IsAutoReblock = false,
+        IsAutoEscape = false, 
+        IsHitboxExtend = false, 
+        HitboxSize = 20,         
+        HitboxWhitelist = {},    
+        OX = 0, OY = 5, OZ = 0,
+        ZZSpeed = 10, ZZRange = 10, ZZUpDownSpeed = 10,    
+        DefaultEscapeHeight = 500, 
+        EscapeDuration = 3.0,     -- Chu kỳ Escape chuẩn giữ 3 giây theo yêu cầu
+        IsSpeedHack = false, CustomSpeed = 120, IsInfJump = false,
+        
+        -- Cấu hình cơ chế vòng cung tịnh tiến mới
+        EscapeRadius = 45,        
+        EscapeSpeed = 18,         
+        WobbleSpeed = 38,         
+        WobbleRange = 5,          
+        FlyUpDuration = 0.6,      -- Thời gian từ từ bay xéo lên đỉnh (0.6 giây)
+        FlyDownDuration = 0.6     -- Thời gian từ từ hạ cánh xuống lại mục tiêu (0.6 giây)
+    }
+
+    local CombatRemote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatRemote") or game:GetService("ReplicatedStorage"):FindFirstChild("Combat") 
+
+    local isEscaping = false
+    local circleAngle = 0      
+    local upDownCounter = 0    
+
+    local lastHealth = 100
+    local function CheckHitboxAndBlock()
+        local char = player.Character
+        if not char then return false end
+        local humanoid = char:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            if humanoid.Health < lastHealth then 
+                lastHealth = humanoid.Health 
+                return true 
+            end
+            lastHealth = humanoid.Health
+        end
+        return false
+    end
+
+    local Tab1Frame = Instance.new("Frame") 
+    local nameBox = Instance.new("TextBox")
+    nameBox.Size = UDim2.new(1, -10, 0, 35)
+    nameBox.PlaceholderText = "Nhập tên mục tiêu..."
+    nameBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    nameBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Instance.new("UICorner", nameBox)
+
+    -- ==================== CƠ CHẾ AUTO ESCAPE TỊNH TIẾN LÊN/XUỐNG & FIX XÁC DI HỒN ====================
+    local function TriggerGroundEscape()
+        if not Config.IsAutoEscape or isEscaping then return end
+        
+        local myChar = player.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = myChar.HumanoidRootPart
+        local hum = myChar:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then return end
+
+        -- Tìm kiếm mục tiêu
+        local targetPlayer = nil
+        local searchText = nameBox.Text:lower()
+        if searchText ~= "" and searchText ~= "nhập tên..." and searchText ~= "nhập tên mục tiêu..." then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player and (p.Name:lower():find(searchText) or p.DisplayName:lower():find(searchText)) then
+                    targetPlayer = p
+                    break
+                end
+            end
+        end
+
+        if not targetPlayer then
+            local closestDist = math.huge
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                    local dist = (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+                    if dist < closestDist then
+                        closestDist = dist
+                        targetPlayer = p
+                    end
+                end
+            end
+        end
+
+        if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+        local targetHrp = targetPlayer.Character.HumanoidRootPart
+
+        isEscaping = true
+
+        -- [ FIX TRIỆT ĐỂ XÁC DI HỒN - PHẦN 1: LOCK QUYỀN MẠNG TUYỆT ĐỐI ]
+        pcall(function()
+            settings().Physics.AllowSleep = false
+            hrp:SetNetworkOwner(player)
+        end)
+        
+        -- Chuyển trạng thái nhân vật để tránh bị kẹt Physics Server
+        hum:ChangeState(Enum.HumanoidStateType.Physics)
+
+        local attachment = Instance.new("Attachment", hrp)
+        local lv = Instance.new("LinearVelocity")
+        lv.MaxForce = math.huge
+        lv.RelativeTo = Enum.ActuatorRelativeTo.World
+        lv.Attachment0 = attachment
+        lv.Parent = hrp
+
+        local startPos = hrp.Position
+        local startTime = tick()
+        local escapeLoop
+        
+        escapeLoop = RunService.Heartbeat:Connect(function()
+            if not hrp or not targetHrp or not hum or hum.Health <= 0 then
+                if escapeLoop then escapeLoop:Disconnect() end
+                if lv then lv:Destroy() end
+                if attachment then attachment:Destroy() end
+                isEscaping = false
+                return
+            end
+
+            local elapsed = tick() - startTime
+            
+            -- ---- GIAI ĐOẠN 1 & 2: TỪ TỪ LÊN ĐỈNH (100Y + XOAY VÒNG CUNG) VÀ DUY TRÌ TRONG 3 GIÂY ----
+            if elapsed <= Config.EscapeDuration then
+                
+                -- Tính toán độ cao nâng dần lên (Từ vị trí hiện tại -> Đạt mốc +100Y sau khoảng thời gian FlyUpDuration)
+                local currentHeightRatio = math.clamp(elapsed / Config.FlyUpDuration, 0, 1)
+                local targetYHeight = math.lerp(startPos.Y, targetHrp.Position.Y + 100, currentHeightRatio)
+--// FULL ESCAPE SYSTEM
+--// Khi bị đánh / vỡ block:
+--// • Bay lên trời
+--// • Bay vòng cung
+--// • Bay 2 vòng tròn lớn
+--// • Toàn bộ trốn thoát kéo dài 4 giây
+--// • Hết 4 giây trở về bình thường
+--// • Tự cập nhật lại character khi chết
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+
+local Character
+local Humanoid
+local HRP
+
+local Escaping = false
+local LastHealth = 100
+
+--========================
+-- LOAD CHARACTER
+--========================
+local function LoadCharacter(Char)
+	Character = Char
+	Humanoid = Character:WaitForChild("Humanoid")
+	HRP = Character:WaitForChild("HumanoidRootPart")
+
+	LastHealth = Humanoid.Health
+end
+
+LoadCharacter(LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait())
+
+LocalPlayer.CharacterAdded:Connect(function(Char)
+	task.wait(1)
+	LoadCharacter(Char)
+end)
+
+--========================
+-- ESCAPE FUNCTION
+--========================
+local function EscapeMove()
+	if Escaping then
+		return
+	end
+
+	Escaping = true
+
+	local StartTime = tick()
+
+	--========================
+	-- GIỮ BAY
+	--========================
+	local BV = Instance.new("BodyVelocity")
+	BV.Name = "EscapeVelocity"
+	BV.MaxForce = Vector3.new(999999,999999,999999)
+	BV.Velocity = Vector3.new(0,0,0)
+	BV.Parent = HRP
+
+	Humanoid.PlatformStand = true
+
+	--========================
+	-- BAY LÊN TRỜI
+	--========================
+	for i = 1, 30 do
+		if tick() - StartTime >= 4 then
+			break
+		end
+
+		HRP.CFrame = HRP.CFrame + Vector3.new(0,5,0)
+
+		task.wait(0.02)
+	end
+
+	local center = HRP.Position
+	local radius = 45
+
+	--========================
+	-- BAY VÒNG CUNG
+	--========================
+	for angle = 0, 180, 6 do
+		if tick() - StartTime >= 4 then
+			break
+		end
+
+		local rad = math.rad(angle)
+
+		local x = math.cos(rad) * radius
+		local y = math.sin(rad) * 20
+		local z = math.sin(rad) * radius
+
+		HRP.CFrame = CFrame.new(
+			center + Vector3.new(x,y,z)
+		)
+
+		task.wait(0.02)
+	end
+
+	--========================
+	-- BAY 2 VÒNG TRÒN TO
+	--========================
+	local rotation = 0
+
+	while tick() - StartTime < 4 do
+		rotation += 8
+
+		local rad = math.rad(rotation)
+
+		local x = math.cos(rad) * radius
+		local z = math.sin(rad) * radius
+
+		HRP.CFrame = CFrame.new(
+			center + Vector3.new(x,0,z)
+		)
+
+		task.wait(0.015)
+	end
+
+	--========================
+	-- KẾT THÚC
+	--========================
+	Humanoid.PlatformStand = false
+
+	if BV then
+		BV:Destroy()
+	end
+
+	Escaping = false
+end
+
+--========================
+-- PHÁT HIỆN BỊ ĐÁNH
+--========================
+RunService.Heartbeat:Connect(function()
+	if not Character then
+		return
+	end
+
+	if not Humanoid then
+		return
+	end
+
+	if Humanoid.Health <= 0 then
+		return
+	end
+
+	-- Khi mất máu => kích hoạt trốn thoát
+	if Humanoid.Health < LastHealth then
+		task.spawn(EscapeMove)
+	end
+
+	LastHealth = Humanoid.Health
+end)
+    -- ==================== HÀM KÉO THẢ TWEEN MƯỢT MÀ ====================
+    local function MakeDraggableSmooth(gui)
+        local dragging = false
+        local dragInput, dragStart, startPos
+        gui.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                dragging = true; dragStart = input.Position; startPos = gui.Position
+                input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+            end
+        end)
+        gui.InputChanged:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end end)
+        UserInputService.InputChanged:Connect(function(input)
+            if input == dragInput and dragging then
+                local delta = input.Position - dragStart
+                local targetPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+                TweenService:Create(gui, TweenInfo.new(0.12, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Position = targetPos}):Play()
+            end
+        end)
+    end
+
+    -- NÚT THU PHÓNG X
+    local Toggle = Instance.new("TextButton", SG)
+    Toggle.Size = UDim2.new(0, 50, 0, 50); Toggle.Position = UDim2.new(0, 15, 0.4, 0); Toggle.Text = "X"; Toggle.BackgroundColor3 = Color3.fromRGB(0, 0, 0); Toggle.TextColor3 = Color3.fromRGB(255, 255, 255); Toggle.Font = Enum.Font.GothamBlack; Toggle.TextSize = 25; Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
+    local ToggleStroke = Instance.new("UIStroke", Toggle); ToggleStroke.Color = Color3.fromRGB(0, 150, 255); ToggleStroke.Thickness = 2                              
+    MakeDraggableSmooth(Toggle)
+
+    -- MÀN HÌNH CHÍNH
+    local Main = Instance.new("Frame", SG)
+    Main.Size = UDim2.new(0, 310, 0, 670); Main.Position = UDim2.new(0.5, -155, 0.5, -335); Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Main.Active = true; Instance.new("UICorner", Main); Instance.new("UIStroke", Main).Color = Color3.fromRGB(212, 175, 55)
+    MakeDraggableSmooth(Main)
+
+    local TabContainer = Instance.new("Frame", Main)
+    TabContainer.Size = UDim2.new(1, 0, 0, 35); TabContainer.Position = UDim2.new(0, 0, 0, 10); TabContainer.BackgroundTransparency = 1
+
+    local Frames = {}
+    local Buttons = {}
+
+    local function CreateTab(name, id)
+        local b = Instance.new("TextButton", TabContainer)
+        b.Size = UDim2.new(0, 85, 0, 30); b.Position = UDim2.new(0, (id-1)*95 + 15, 0, 0); b.Text = name; b.BackgroundColor3 = Color3.fromRGB(45, 45, 45); b.TextColor3 = Color3.fromRGB(255, 255, 255); b.Font = Enum.Font.GothamBold; b.TextSize = 10; Instance.new("UICorner", b)
+
+        local f = Instance.new("ScrollingFrame", Main)
+        f.Size = UDim2.new(1, -20, 1, -70); f.Position = UDim2.new(0, 10, 0, 50); f.Visible = (id == 1); f.BackgroundTransparency = 1; f.ScrollBarThickness = 3; f.CanvasSize = UDim2.new(0, 0, 0, 850)
+        Instance.new("UIListLayout", f).Padding = UDim.new(0, 8)
+        
+        Frames[id] = f; Buttons[id] = b
+        if id == 1 then b.BackgroundColor3 = Color3.fromRGB(120, 0, 0) end
+
+        b.MouseButton1Click:Connect(function()
+            for i, frame in pairs(Frames) do frame.Visible = (i == id); Buttons[i].BackgroundColor3 = (i == id) and Color3.fromRGB(120, 0, 0) or Color3.fromRGB(45, 45, 45) end
+        end)
+        return f
+    end
+
+    local Tab1 = CreateTab("COMBAT", 1)
+    local Tab2 = CreateTab("HITBOX", 2)
+    local Tab3 = CreateTab("PLAYER", 3)
+
+    Tab1Frame.Parent = Tab1
+    Tab1Frame.Size = UDim2.new(1, 0, 0, 800)
+    Tab1Frame.BackgroundTransparency = 1
+
+    RunService.RenderStepped:Connect(function()
+        if Config.IsSpeedHack then
+            pcall(function()
+                local char = player.Character
+                if char and char:FindFirstChildOfClass("Humanoid") then char:FindFirstChildOfClass("Humanoid").WalkSpeed = Config.CustomSpeed end
+            end)
+        end
+    end)
+
+    UserInputService.JumpRequest:Connect(function()
+        if Config.IsInfJump then
+            pcall(function()
+                local char = player.Character
+                if char and char:FindFirstChildOfClass("Humanoid") then char:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping) end
+            end)
+        end
+    end)
+
+    hitboxConnection = RunService.RenderStepped:Connect(function()
+        if not Config.IsHitboxExtend then return end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character then
+                local root = p.Character:FindFirstChild("HumanoidRootPart")
+                if root then
+                    if Config.HitboxWhitelist[p.Name] then
+                        root.Size = Vector3.new(2, 2, 1) 
+                        root.Transparency = 1            
+                    else
+                        root.Size = Vector3.new(Config.HitboxSize, Config.HitboxSize, Config.HitboxSize)
+                        root.Transparency = 0.65
+                        root.Color = Color3.fromRGB(255, 215, 0) 
+                        root.CanCollide = false
+                    end
+                end
+            end
+        end
+    end)
+
+    globalEscapeConnection = RunService.Heartbeat:Connect(function(deltaTime)
+        if Config.IsAutoEscape and CheckHitboxAndBlock() and not isEscaping then
+            TriggerGroundEscape() 
+        end
+    end)
+
+    RunService.Stepped:Connect(function(time, deltaTime)
+        local c = player.Character
+        if not c or not c:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = c.HumanoidRootPart
+        local s = nameBox.Text:lower()
+        local t = nil
+        
+        if s ~= "" and s ~= "nhập tên..." and s ~= "nhập tên mục tiêu..." then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player and (p.Name:lower():find(s) or p.DisplayName:lower():find(s)) then t = p; break end
+            end
+        end
+        
+        local currentOX, currentOY, currentOZ = Config.OX, Config.OY, Config.OZ
+        if isZicZac and t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") then
+            circleAngle = circleAngle + (Config.ZZSpeed * deltaTime)
+            currentOX = math.cos(circleAngle) * Config.ZZRange
+            currentOZ = math.sin(circleAngle) * Config.ZZRange
+            upDownCounter = upDownCounter + (Config.ZZUpDownSpeed * deltaTime)
+            currentOY = Config.OY + (math.sin(upDownCounter) * 6) 
+        end
+        
+        if IsTelePro and not IsBringLoop and t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and not isEscaping then
+            local thrp = t.Character.HumanoidRootPart
+            local cleanTargetCFrame = CFrame.new(thrp.Position) * (thrp.CFrame - thrp.Position)
+            local tp = cleanTargetCFrame * CFrame.new(currentOX, currentOY, currentOZ)
+            if (tp.Position - hrp.Position).Magnitude > 20 then hrp.Velocity = (tp.Position - hrp.Position).Unit * 200 else hrp.CFrame = tp hrp.Velocity = Vector3.zero end
+        end
+        
+        -- Thêm flag trạng thái IsEscaping để ép noclip toàn bộ phần tử chống kẹt/Desync xác di hồn
+        if IsNoclip or IsTelePro or AutoFarmActive or isEscaping or Config.IsHitboxExtend then
+            for _, v in pairs(c:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end
+        end
+    end)
+
+    game:GetService("RunService").Heartbeat:Connect(function()
+        pcall(function()
+            if Config.IsAutoClick and CombatRemote then CombatRemote:FireServer("M1") CombatRemote:FireServer("M2") end
+            if Config.IsAutoReblock and CombatRemote then CombatRemote:FireServer("Block", true) end
+        end)
+    end)
+
+    -- ==================== THIẾT KẾ GIAO DIỆN HÀNG DỌC (TAB 1) ====================
+    local title1 = Instance.new("TextLabel", Tab1Frame); title1.Size = UDim2.new(1,0,0,25); title1.Text = "🚀 MAIN COMBAT"; title1.TextColor3 = Color3.fromRGB(255,255,255); title1.BackgroundTransparency = 1; title1.Font = Enum.Font.GothamBold
+
+    nameBox.Parent = Tab1Frame; nameBox.Position = UDim2.new(0,5,0,30)
+
+    local currentYPos = 75
+    local function CreateVerticalSetting(labelName, defaultValue, updateCallback)
+        local rowFrame = Instance.new("Frame", Tab1Frame); rowFrame.Size = UDim2.new(1, -10, 0, 32); rowFrame.Position = UDim2.new(0, 5, 0, currentYPos); rowFrame.BackgroundTransparency = 1
+        local lbl = Instance.new("TextLabel", rowFrame); lbl.Size = UDim2.new(0.42, 0, 1, 0); lbl.Text = labelName; lbl.TextColor3 = Color3.fromRGB(220, 220, 220); lbl.Font = Enum.Font.GothamSemibold; lbl.TextSize = 10; lbl.TextXAlignment = Enum.TextXAlignment.Left; lbl.BackgroundTransparency = 1
+        local btnMinus = Instance.new("TextButton", rowFrame); btnMinus.Size = UDim2.new(0.14, -4, 1, 0); btnMinus.Position = UDim2.new(0.42, 2, 0, 0); btnMinus.Text = "-"; btnMinus.BackgroundColor3 = Color3.fromRGB(150, 40, 40); btnMinus.TextColor3 = Color3.fromRGB(255, 255, 255); btnMinus.Font = Enum.Font.GothamBlack; btnMinus.TextSize = 16; Instance.new("UICorner", btnMinus)
+        local box = Instance.new("TextBox", rowFrame); box.Size = UDim2.new(0.3, -8, 1, 0); box.Position = UDim2.new(0.56, 4, 0, 0); box.Text = tostring(defaultValue); box.BackgroundColor3 = Color3.fromRGB(35, 35, 35); box.TextColor3 = Color3.fromRGB(255, 255, 255); box.Font = Enum.Font.GothamBold; box.TextSize = 12; Instance.new("UICorner", box)
+        local btnPlus = Instance.new("TextButton", rowFrame); btnPlus.Size = UDim2.new(0.14, -4, 1, 0); btnPlus.Position = UDim2.new(0.86, 2, 0, 0); btnPlus.Text = "+"; btnPlus.BackgroundColor3 = Color3.fromRGB(40, 150, 40); btnPlus.TextColor3 = Color3.fromRGB(255, 255, 255); btnPlus.Font = Enum.Font.GothamBlack; btnPlus.TextSize = 16; Instance.new("UICorner", btnPlus)
+
+        box:GetPropertyChangedSignal("Text"):Connect(function() local n = tonumber(box.Text) if n then updateCallback(n) end end)
+        btnMinus.MouseButton1Click:Connect(function() local current = tonumber(box.Text) or defaultValue; box.Text = tostring(current - 2); updateCallback(current - 2) end)
+        btnPlus.MouseButton1Click:Connect(function() local current = tonumber(box.Text) or defaultValue; box.Text = tostring(current + 2); updateCallback(current + 2) end)
+        currentYPos = currentYPos + 38
+    end
+
+    CreateVerticalSetting("Trục vị trí X:", Config.OX, function(v) Config.OX = v end)
+    CreateVerticalSetting("Trục vị trí Y:", Config.OY, function(v) Config.OY = v end)
+    CreateVerticalSetting("Trục vị trí Z:", Config.OZ, function(v) Config.OZ = v end)
+    CreateVerticalSetting("Tốc độ zic zac:", Config.ZZSpeed, function(v) Config.ZZSpeed = v end)
+    CreateVerticalSetting("Bán kính vòng tròn :", Config.ZZRange, function(v) Config.ZZRange = v end)
+    CreateVerticalSetting("Tốc độ lên xuống zic zac:", Config.ZZUpDownSpeed, function(v) Config.ZZUpDownSpeed = v end)
+
+    currentYPos = currentYPos + 5
+    local tpBtn = Instance.new("TextButton", Tab1Frame); tpBtn.Size = UDim2.new(1,-10,0,42); tpBtn.Position = UDim2.new(0,5,0,currentYPos); tpBtn.Text = "TELEPORT LƠ LỬNG"; tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); tpBtn.TextColor3 = Color3.fromRGB(255,255,255); tpBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", tpBtn)
+    currentYPos = currentYPos + 48
+    local zzBtn = Instance.new("TextButton", Tab1Frame); zzBtn.Size = UDim2.new(1,-10,0,42); zzBtn.Position = UDim2.new(0,5,0,currentYPos); zzBtn.Text = "BẬT XOAY VÒNG 3D"; zzBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); zzBtn.TextColor3 = Color3.fromRGB(255,255,255); zzBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", zzBtn)
+    currentYPos = currentYPos + 48
+    local escapeBtn = Instance.new("TextButton", Tab1Frame); escapeBtn.Size = UDim2.new(1,-10,0,42); escapeBtn.Position = UDim2.new(0,5,0,currentYPos); escapeBtn.Text = "BẬT AUTO ESCAPE 100Y"; escapeBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); escapeBtn.TextColor3 = Color3.fromRGB(255,255,255); escapeBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", escapeBtn)
+    currentYPos = currentYPos + 48
+    local m1m2Btn = Instance.new("TextButton", Tab1Frame); m1m2Btn.Size = UDim2.new(1,-10,0,42); m1m2Btn.Position = UDim2.new(0,5,0,currentYPos); m1m2Btn.Text = "BẬT AUTO M1 + M2 (REMOTE)"; m1m2Btn.BackgroundColor3 = Color3.fromRGB(60,60,60); m1m2Btn.TextColor3 = Color3.fromRGB(255,255,255); m1m2Btn.Font = Enum.Font.GothamBold; Instance.new("UICorner", m1m2Btn)
+    currentYPos = currentYPos + 48
+    local blockBtn = Instance.new("TextButton", Tab1Frame); blockBtn.Size = UDim2.new(1,-10,0,42); blockBtn.Position = UDim2.new(0,5,0,currentYPos); blockBtn.Text = "BẬT AUTO BLOCK (REMOTE)"; blockBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); blockBtn.TextColor3 = Color3.fromRGB(255,255,255); blockBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", blockBtn)
+
+
+    -- ==================== GIAO DIỆN PHẦN TỬ (TAB 2) ====================
+    local sec2 = Instance.new("Frame", Tab2); sec2.Size = UDim2.new(1,0,0,550); sec2.BackgroundTransparency = 1
+    local title2 = Instance.new("TextLabel", sec2); title2.Size = UDim2.new(1,0,0,30); title2.Text = "🛠️ HITBOX & LIVE LIST"; title2.TextColor3 = Color3.fromRGB(255,255,255); title2.BackgroundTransparency = 1; title2.Font = Enum.Font.GothamBold
+
+    local hitboxToggleBtn = Instance.new("TextButton", sec2); hitboxToggleBtn.Size = UDim2.new(1,-10,0,42); hitboxToggleBtn.Position = UDim2.new(0,5,0,35); hitboxToggleBtn.Text = "BẬT HITBOX"; hitboxToggleBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); hitboxToggleBtn.TextColor3 = Color3.fromRGB(255,255,255); hitboxToggleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", hitboxToggleBtn)
+
+    local hitboxSetRow = Instance.new("Frame", sec2); hitboxSetRow.Size = UDim2.new(1,-10,0,35); hitboxSetRow.Position = UDim2.new(0,5,0,85); hitboxSetRow.BackgroundTransparency = 1
+    local hbLabel = Instance.new("TextLabel", hitboxSetRow); hbLabel.Size = UDim2.new(0.42, 0, 1, 0); hbLabel.Text = "Kích thước Hitbox:"; hbLabel.TextColor3 = Color3.fromRGB(200, 200, 200); hbLabel.Font = Enum.Font.GothamSemibold; hbLabel.TextSize = 10; hbLabel.TextXAlignment = Enum.TextXAlignment.Left; hbLabel.BackgroundTransparency = 1
+    
+    local hbMinus = Instance.new("TextButton", hitboxSetRow); hbMinus.Size = UDim2.new(0.14, -4, 1, 0); hbMinus.Position = UDim2.new(0.42, 2, 0, 0); hbMinus.Text = "-"; hbMinus.BackgroundColor3 = Color3.fromRGB(150, 40, 40); hbMinus.TextColor3 = Color3.fromRGB(255, 255, 255); hbMinus.Font = Enum.Font.GothamBlack; hbMinus.TextSize = 16; Instance.new("UICorner", hbMinus)
+    local hbBox = Instance.new("TextBox", hitboxSetRow); hbBox.Size = UDim2.new(0.3, -8, 1, 0); hbBox.Position = UDim2.new(0.56, 4, 0, 0); hbBox.Text = "20"; hbBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35); hbBox.TextColor3 = Color3.fromRGB(255, 255, 255); hbBox.Font = Enum.Font.GothamBold; hbBox.TextSize = 12; Instance.new("UICorner", hbBox)
+    local hbPlus = Instance.new("TextButton", hitboxSetRow); hbPlus.Size = UDim2.new(0.14, -4, 1, 0); hbPlus.Position = UDim2.new(0.86, 2, 0, 0); hbPlus.Text = "+"; hbPlus.BackgroundColor3 = Color3.fromRGB(40, 150, 40); hbPlus.TextColor3 = Color3.fromRGB(255, 255, 255); hbPlus.Font = Enum.Font.GothamBlack; hbPlus.TextSize = 16; Instance.new("UICorner", hbPlus)
+
+    hbBox:GetPropertyChangedSignal("Text"):Connect(function() Config.HitboxSize = tonumber(hbBox.Text) or 20 end)
+    hbMinus.MouseButton1Click:Connect(function() local c = tonumber(hbBox.Text) or 20; hbBox.Text = tostring(math.max(1, c - 2)) Config.HitboxSize = math.max(1, c - 2) end)
+    hbPlus.MouseButton1Click:Connect(function() local c = tonumber(hbBox.Text) or 20; hbBox.Text = tostring(c + 2) Config.HitboxSize = c + 2 end)
+
+    local listLabel = Instance.new("TextLabel", sec2); listLabel.Size = UDim2.new(1,-10,0,20); listLabel.Position = UDim2.new(0,5,0,130); listLabel.Text = "🛡️ DANH MỤC NGƯỜI CHƠI (ẤN ĐỂ LOẠI TRỪ HITBOX)"; listLabel.TextColor3 = Color3.fromRGB(212,175,55); listLabel.BackgroundTransparency = 1; listLabel.Font = Enum.Font.GothamBold; listLabel.TextSize = 10; listLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+    local pListFrame = Instance.new("ScrollingFrame", sec2)
+    pListFrame.Size = UDim2.new(1, -10, 0, 240); pListFrame.Position = UDim2.new(0, 5, 0, 155); pListFrame.BackgroundColor3 = Color3.fromRGB(25, 25, 25); pListFrame.ScrollBarThickness = 4; pListFrame.CanvasSize = UDim2.new(0,0,0,0)
+    local listLayout = Instance.new("UIListLayout", pListFrame); listLayout.Padding = UDim.new(0, 5); listLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+    local function UpdateLivePlayerList()
+        for _, child in ipairs(pListFrame:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player then
+                local pBtn = Instance.new("TextButton", pListFrame)
+                pBtn.Size = UDim2.new(1, -8, 0, 32); pBtn.Font = Enum.Font.GothamSemibold; pBtn.TextSize = 11; pBtn.TextXAlignment = Enum.TextXAlignment.Left; Instance.new("UICorner", pBtn)
+                if Config.HitboxWhitelist[p.Name] then
+                    pBtn.Text = "  [LOẠI TRỪ] " .. p.DisplayName .. " (@" .. p.Name .. ")"
+                    pBtn.TextColor3 = Color3.fromRGB(255, 255, 255); pBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40) 
+                else
+                    pBtn.Text = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"
+                    pBtn.TextColor3 = Color3.fromRGB(200, 200, 200); pBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45) 
+                end
+                pBtn.MouseButton1Click:Connect(function()
+                    if Config.HitboxWhitelist[p.Name] then
+                        Config.HitboxWhitelist[p.Name] = nil 
+                        if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then p.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1) p.Character.HumanoidRootPart.Transparency = 1 end
+                    else
+                        Config.HitboxWhitelist[p.Name] = true 
+                    end
+                    UpdateLivePlayerList()
+                end)
+            end
+        end
+        pListFrame.CanvasSize = UDim2.new(0, 0, 0, listLayout.AbsoluteContentSize.Y + 10)
+    end
+
+    Players.PlayerAdded:Connect(UpdateLivePlayerList)
+    Players.PlayerRemoving:Connect(UpdateLivePlayerList)
+    UpdateLivePlayerList() 
+
+    hitboxToggleBtn.MouseButton1Click:Connect(function()
+        Config.IsHitboxExtend = not Config.IsHitboxExtend
+        hitboxToggleBtn.BackgroundColor3 = Config.IsHitboxExtend and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60,60,60)
+        hitboxToggleBtn.Text = Config.IsHitboxExtend and "ĐANG BẬT HITBOX" or "BẬT HITBOX"
+        if not Config.IsHitboxExtend then
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then p.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1) p.Character.HumanoidRootPart.Transparency = 1 end
+            end
+        end
+    end)
+
+
+    -- ==================== GIAO DIỆN TAB 3 (PLAYER) ====================
+    local sec3 = Instance.new("Frame", Tab3); sec3.Size = UDim2.new(1,0,0,400); sec3.BackgroundTransparency = 1
+    local title3 = Instance.new("TextLabel", sec3); title3.Size = UDim2.new(1,0,0,30); title3.Text = "⚡ PLAYER MODIFICATION"; title3.TextColor3 = Color3.fromRGB(255,255,255); title3.BackgroundTransparency = 1; title3.Font = Enum.Font.GothamBold
+
+    local speedToggleBtn = Instance.new("TextButton", sec3); speedToggleBtn.Size = UDim2.new(1, -10, 0, 42); speedToggleBtn.Position = UDim2.new(0, 5, 0, 40); speedToggleBtn.Text = "BẬT TỐC ĐỘ HACK"; speedToggleBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); speedToggleBtn.TextColor3 = Color3.fromRGB(255,255,255); speedToggleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", speedToggleBtn)
+
+    local speedRow = Instance.new("Frame", sec3); speedRow.Size = UDim2.new(1, -10, 0, 35); speedRow.Position = UDim2.new(0, 5, 0, 90); speedRow.BackgroundTransparency = 1
+    local speedLbl = Instance.new("TextLabel", speedRow); speedLbl.Size = UDim2.new(0.4, 0, 1, 0); speedLbl.Text = "Tùy chỉnh Speed:"; speedLbl.TextColor3 = Color3.fromRGB(200, 200, 200); speedLbl.Font = Enum.Font.GothamSemibold; speedLbl.TextSize = 11; speedLbl.TextXAlignment = Enum.TextXAlignment.Left; speedLbl.BackgroundTransparency = 1
+    local speedMinus = Instance.new("TextButton", speedRow); speedMinus.Size = UDim2.new(0.15, -4, 1, 0); speedMinus.Position = UDim2.new(0.4, 2, 0, 0); speedMinus.Text = "-"; speedMinus.BackgroundColor3 = Color3.fromRGB(150, 40, 40); speedMinus.TextColor3 = Color3.fromRGB(255, 255, 255); speedMinus.Font = Enum.Font.GothamBlack; speedMinus.TextSize = 16; Instance.new("UICorner", speedMinus)
+    local speedBox = Instance.new("TextBox", speedRow); speedBox.Size = UDim2.new(0.3, -8, 1, 0); speedBox.Position = UDim2.new(0.55, 4, 0, 0); speedBox.Text = tostring(Config.CustomSpeed); speedBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35); speedBox.TextColor3 = Color3.fromRGB(255, 255, 255); speedBox.Font = Enum.Font.GothamBold; speedBox.TextSize = 12; Instance.new("UICorner", speedBox)
+    local speedPlus = Instance.new("TextButton", speedRow); speedPlus.Size = UDim2.new(0.15, -4, 1, 0); speedPlus.Position = UDim2.new(0.85, 2, 0, 0); speedPlus.Text = "+"; speedPlus.BackgroundColor3 = Color3.fromRGB(40, 150, 40); speedPlus.TextColor3 = Color3.fromRGB(255, 255, 255); speedPlus.Font = Enum.Font.GothamBlack; speedPlus.TextSize = 16; Instance.new("UICorner", speedPlus)
+
+    local infJumpToggleBtn = Instance.new("TextButton", sec3); infJumpToggleBtn.Size = UDim2.new(1, -10, 0, 42); infJumpToggleBtn.Position = UDim2.new(0, 5, 0, 145); infJumpToggleBtn.Text = "BẬT NHẢY VÔ HẠN"; infJumpToggleBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); infJumpToggleBtn.TextColor3 = Color3.fromRGB(255,255,255); infJumpToggleBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", infJumpToggleBtn)
+
+
+    -- ==================== LIÊN KẾT ĐIỀU KHIỂN CHUNG ====================
+    tpBtn.MouseButton1Click:Connect(function()
+        local textName = nameBox.Text if textName == "" then return end
+        IsTelePro = not IsTelePro 
+        if IsTelePro then tpBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0) tpBtn.Text = "ĐANG BÁM⚡: " .. textName:upper()
+        else tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) tpBtn.Text = "TELEPORT PRO⚡" if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then player.Character.HumanoidRootPart.Velocity = Vector3.zero end end
+    end)
+
+    zzBtn.MouseButton1Click:Connect(function()
+        local textName = nameBox.Text if textName == "" then return end
+        isZicZac = not isZicZac
+        if isZicZac then zzBtn.BackgroundColor3 = Color3.fromRGB(230, 130, 0) zzBtn.Text = "ZIC ZAC PRO💫: BẬT" else zzBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) zzBtn.Text = "BẬT ZIC ZAC PRO💫" end
+    end)
+
+    escapeBtn.MouseButton1Click:Connect(function()
+        Config.IsAutoEscape = not Config.IsAutoEscape
+        escapeBtn.BackgroundColor3 = Config.IsAutoEscape and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60,60,60)
+        escapeBtn.Text = Config.IsAutoEscape and "ĐANG BẬT ESCAPE🐍" or "BẬT AUTO ESCAPE🐍"
+    end)
+
+    m1m2Btn.MouseButton1Click:Connect(function() Config.IsAutoClick = not Config.IsAutoClick m1m2Btn.BackgroundColor3 = Config.IsAutoClick and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60,60,60) end)
+    blockBtn.MouseButton1Click:Connect(function() Config.IsAutoReblock = not Config.IsAutoReblock blockBtn.BackgroundColor3 = Config.IsAutoReblock and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60,60,60) end)
+
+    speedToggleBtn.MouseButton1Click:Connect(function()
+        Config.IsSpeedHack = not Config.IsSpeedHack
+        if Config.IsSpeedHack then speedToggleBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0) speedToggleBtn.Text = "ĐANG BẬT TỐC ĐỘ HACK"
+        else speedToggleBtn.BackgroundColor3 = Color3.fromRGB(60,60,60) speedToggleBtn.Text = "BẬT TỐC ĐỘ HACK" pcall(function() if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then player.Character.HumanoidRootPart.Velocity = Vector3.zero player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16 end end) end
+    end)
+
+    speedBox:GetPropertyChangedSignal("Text"):Connect(function() local n = tonumber(speedBox.Text) if n then Config.CustomSpeed = n end end)
+    speedMinus.MouseButton1Click:Connect(function() local curr = tonumber(speedBox.Text) or 120; curr = math.max(0, curr - 10); speedBox.Text = tostring(curr) Config.CustomSpeed = curr end)
+    speedPlus.MouseButton1Click:Connect(function() local curr = tonumber(speedBox.Text) or 120; curr = curr + 10; speedBox.Text = tostring(curr) Config.CustomSpeed = curr end)
+
+    infJumpToggleBtn.MouseButton1Click:Connect(function()
+        Config.IsInfJump = not Config.IsInfJump
+        infJumpToggleBtn.BackgroundColor3 = Config.IsInfJump and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60,60,60)
+        infJumpToggleBtn.Text = Config.IsInfJump and "ĐANG BẬT NHẢY VÔ HẠN" or "BẬT NHẢY VÔ HẠN"
+    end)
+
+    Toggle.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+end
+
+LoginBtn.MouseButton1Click:Connect(function()
+    if PassInput.Text == CORRECT_PASSWORD then StartScript() else PassInput.Text = "" PassInput.PlaceholderText = "SAI MẬT KHẨU!" task.wait(1) PassInput.PlaceholderText = "NHẬP LẠI MẬT KHẨU..." end
+end)
