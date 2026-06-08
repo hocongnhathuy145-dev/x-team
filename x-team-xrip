@@ -449,15 +449,15 @@ function StartScript()
     CreateVerticalSetting("Tốc độ lên xuống zic zac:", Config.ZZUpDownSpeed, function(v) Config.ZZUpDownSpeed = v end)
 
     currentYPos = currentYPos + 5
-    local tpBtn = Instance.new("TextButton", Tab1Frame); tpBtn.Size = UDim2.new(1,-10,0,42); tpBtn.Position = UDim2.new(0,5,0,currentYPos); tpBtn.Text = "TELEPORT LƠ LỬNG"; tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); tpBtn.TextColor3 = Color3.fromRGB(255,255,255); tpBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", tpBtn)
+    local tpBtn = Instance.new("TextButton", Tab1Frame); tpBtn.Size = UDim2.new(1,-10,0,42); tpBtn.Position = UDim2.new(0,5,0,currentYPos); tpBtn.Text = "TELEPORT PRO⚡"; tpBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); tpBtn.TextColor3 = Color3.fromRGB(255,255,255); tpBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", tpBtn)
     currentYPos = currentYPos + 48
-    local zzBtn = Instance.new("TextButton", Tab1Frame); zzBtn.Size = UDim2.new(1,-10,0,42); zzBtn.Position = UDim2.new(0,5,0,currentYPos); zzBtn.Text = "BẬT XOAY VÒNG 3D"; zzBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); zzBtn.TextColor3 = Color3.fromRGB(255,255,255); zzBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", zzBtn)
+    local zzBtn = Instance.new("TextButton", Tab1Frame); zzBtn.Size = UDim2.new(1,-10,0,42); zzBtn.Position = UDim2.new(0,5,0,currentYPos); zzBtn.Text = "BẬT ZIC ZAC💫"; zzBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); zzBtn.TextColor3 = Color3.fromRGB(255,255,255); zzBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", zzBtn)
     currentYPos = currentYPos + 48
-    local escapeBtn = Instance.new("TextButton", Tab1Frame); escapeBtn.Size = UDim2.new(1,-10,0,42); escapeBtn.Position = UDim2.new(0,5,0,currentYPos); escapeBtn.Text = "BẬT AUTO ESCAPE 100Y"; escapeBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); escapeBtn.TextColor3 = Color3.fromRGB(255,255,255); escapeBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", escapeBtn)
+    local escapeBtn = Instance.new("TextButton", Tab1Frame); escapeBtn.Size = UDim2.new(1,-10,0,42); escapeBtn.Position = UDim2.new(0,5,0,currentYPos); escapeBtn.Text = "BẬT AUTO ESCAPE🐍"; escapeBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); escapeBtn.TextColor3 = Color3.fromRGB(255,255,255); escapeBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", escapeBtn)
     currentYPos = currentYPos + 48
-    local m1m2Btn = Instance.new("TextButton", Tab1Frame); m1m2Btn.Size = UDim2.new(1,-10,0,42); m1m2Btn.Position = UDim2.new(0,5,0,currentYPos); m1m2Btn.Text = "BẬT AUTO M1 + M2 (REMOTE)"; m1m2Btn.BackgroundColor3 = Color3.fromRGB(60,60,60); m1m2Btn.TextColor3 = Color3.fromRGB(255,255,255); m1m2Btn.Font = Enum.Font.GothamBold; Instance.new("UICorner", m1m2Btn)
+    local m1m2Btn = Instance.new("TextButton", Tab1Frame); m1m2Btn.Size = UDim2.new(1,-10,0,42); m1m2Btn.Position = UDim2.new(0,5,0,currentYPos); m1m2Btn.Text = "BẬT AUTO M1 + M2"; m1m2Btn.BackgroundColor3 = Color3.fromRGB(60,60,60); m1m2Btn.TextColor3 = Color3.fromRGB(255,255,255); m1m2Btn.Font = Enum.Font.GothamBold; Instance.new("UICorner", m1m2Btn)
     currentYPos = currentYPos + 48
-    local blockBtn = Instance.new("TextButton", Tab1Frame); blockBtn.Size = UDim2.new(1,-10,0,42); blockBtn.Position = UDim2.new(0,5,0,currentYPos); blockBtn.Text = "BẬT AUTO BLOCK (REMOTE)"; blockBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); blockBtn.TextColor3 = Color3.fromRGB(255,255,255); blockBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", blockBtn)
+    local blockBtn = Instance.new("TextButton", Tab1Frame); blockBtn.Size = UDim2.new(1,-10,0,42); blockBtn.Position = UDim2.new(0,5,0,currentYPos); blockBtn.Text = "BẬT AUTO BLOCK"; blockBtn.BackgroundColor3 = Color3.fromRGB(60,60,60); blockBtn.TextColor3 = Color3.fromRGB(255,255,255); blockBtn.Font = Enum.Font.GothamBold; Instance.new("UICorner", blockBtn)
 
 
     -- ==================== GIAO DIỆN PHẦN TỬ (TAB 2) ====================
