@@ -195,166 +195,101 @@ function StartScript()
 
             local elapsed = tick() - startTime
             
-            -- ---- GIAI ĐOẠN 1 & 2: TỪ TỪ LÊN ĐỈNH (100Y + XOAY VÒNG CUNG) VÀ DUY TRÌ TRONG 3 GIÂY ----
+                -- ==================== CƠ CHẾ AUTO ESCAPE MỚI (BAY VỌT 200X & QUAY LẠI) ====================
+    local function TriggerGroundEscape()
+        if not Config.IsAutoEscape or isEscaping then return end
+        
+        local myChar = player.Character
+        if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+        local hrp = myChar.HumanoidRootPart
+        local hum = myChar:FindFirstChildOfClass("Humanoid")
+        if not hum or hum.Health <= 0 then return end
+
+        -- Tìm kiếm mục tiêu
+        local targetPlayer = nil
+        local searchText = nameBox.Text:lower()
+        if searchText ~= "" and searchText ~= "nhập tên..." and searchText ~= "nhập tên mục tiêu..." then
+            for _, p in pairs(Players:GetPlayers()) do
+                if p ~= player and (p.Name:lower():find(searchText) or p.DisplayName:lower():find(searchText)) then
+                    targetPlayer = p
+                    break
+                end
+            end
+        end
+
+        if not targetPlayer or not targetPlayer.Character or not targetPlayer.Character:FindFirstChild("HumanoidRootPart") then return end
+        local targetHrp = targetPlayer.Character.HumanoidRootPart
+
+        isEscaping = true
+        
+        -- Lock Physics & Network để ổn định vị trí
+        pcall(function()
+            settings().Physics.AllowSleep = false
+            hrp:SetNetworkOwner(player)
+        end)
+        hum:ChangeState(Enum.HumanoidStateType.Physics)
+
+        local attachment = Instance.new("Attachment", hrp)
+        local lv = Instance.new("LinearVelocity")
+        lv.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+        lv.VectorVelocity = Vector3.zero
+        lv.Attachment0 = attachment
+        lv.Parent = hrp
+
+        local startTime = tick()
+        local escapeLoop
+        
+        escapeLoop = RunService.Heartbeat:Connect(function()
+            if not hrp or not targetHrp or hum.Health <= 0 then
+                if escapeLoop then escapeLoop:Disconnect() end
+                if lv then lv:Destroy() end
+                if attachment then attachment:Destroy() end
+                isEscaping = false
+                return
+            end
+
+            local elapsed = tick() - startTime
+            
+            -- GIAI ĐOẠN 1: Bay vọt 200 đơn vị X trong 3 giây
             if elapsed <= Config.EscapeDuration then
+                local targetPos = (targetHrp.CFrame * CFrame.new(200, 50, 0)).Position
+                lv.VectorVelocity = (targetPos - hrp.Position) * 15
+                hrp.CFrame = CFrame.new(hrp.Position, targetHrp.Position)
+            else
+                -- GIAI ĐOẠN 2: Ngắt bay vọt, bắt đầu quay lại mục tiêu
+                escapeLoop:Disconnect()
+                local returnStartTime = tick()
                 
-                -- Tính toán độ cao nâng dần lên (Từ vị trí hiện tại -> Đạt mốc +100Y sau khoảng thời gian FlyUpDuration)
-                local currentHeightRatio = math.clamp(elapsed / Config.FlyUpDuration, 0, 1)
-                local targetYHeight = math.lerp(startPos.Y, targetHrp.Position.Y + 100, currentHeightRatio)
---// FULL ESCAPE SYSTEM
---// Khi bị đánh / vỡ block:
---// • Bay lên trời
---// • Bay vòng cung
---// • Bay 2 vòng tròn lớn
---// • Toàn bộ trốn thoát kéo dài 4 giây
---// • Hết 4 giây trở về bình thường
---// • Tự cập nhật lại character khi chết
+                local returnLoop
+                returnLoop = RunService.Heartbeat:Connect(function()
+                    if not hrp or not targetHrp or hum.Health <= 0 then
+                        if returnLoop then returnLoop:Disconnect() end
+                        if lv then lv:Destroy() end
+                        if attachment then attachment:Destroy() end
+                        isEscaping = false
+                        return
+                    end
+                    
+                    local t = (tick() - returnStartTime) / 1.5 
+                    local finalLandPos = (targetHrp.CFrame * CFrame.new(Config.OX, Config.OY, Config.OZ)).Position
+                    
+                    if t >= 1 then
+                        returnLoop:Disconnect()
+                        lv:Destroy()
+                        attachment:Destroy()
+                        hrp.AssemblyLinearVelocity = Vector3.zero
+                        hum:ChangeState(Enum.HumanoidStateType.Running)
+                        pcall(function() hrp:SetNetworkOwner(nil) end)
+                        isEscaping = false
+                    else
+                        lv.VectorVelocity = (finalLandPos - hrp.Position) * 10
+                        hrp.CFrame = CFrame.new(hrp.Position, targetHrp.Position)
+                    end
+                end)
+            end
+        end)
+    end
 
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-
-local LocalPlayer = Players.LocalPlayer
-
-local Character
-local Humanoid
-local HRP
-
-local Escaping = false
-local LastHealth = 100
-
---========================
--- LOAD CHARACTER
---========================
-local function LoadCharacter(Char)
-	Character = Char
-	Humanoid = Character:WaitForChild("Humanoid")
-	HRP = Character:WaitForChild("HumanoidRootPart")
-
-	LastHealth = Humanoid.Health
-end
-
-LoadCharacter(LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait())
-
-LocalPlayer.CharacterAdded:Connect(function(Char)
-	task.wait(1)
-	LoadCharacter(Char)
-end)
-
---========================
--- ESCAPE FUNCTION
---========================
-local function EscapeMove()
-	if Escaping then
-		return
-	end
-
-	Escaping = true
-
-	local StartTime = tick()
-
-	--========================
-	-- GIỮ BAY
-	--========================
-	local BV = Instance.new("BodyVelocity")
-	BV.Name = "EscapeVelocity"
-	BV.MaxForce = Vector3.new(999999,999999,999999)
-	BV.Velocity = Vector3.new(0,0,0)
-	BV.Parent = HRP
-
-	Humanoid.PlatformStand = true
-
-	--========================
-	-- BAY LÊN TRỜI
-	--========================
-	for i = 1, 30 do
-		if tick() - StartTime >= 4 then
-			break
-		end
-
-		HRP.CFrame = HRP.CFrame + Vector3.new(0,5,0)
-
-		task.wait(0.02)
-	end
-
-	local center = HRP.Position
-	local radius = 45
-
-	--========================
-	-- BAY VÒNG CUNG
-	--========================
-	for angle = 0, 180, 6 do
-		if tick() - StartTime >= 4 then
-			break
-		end
-
-		local rad = math.rad(angle)
-
-		local x = math.cos(rad) * radius
-		local y = math.sin(rad) * 20
-		local z = math.sin(rad) * radius
-
-		HRP.CFrame = CFrame.new(
-			center + Vector3.new(x,y,z)
-		)
-
-		task.wait(0.02)
-	end
-
-	--========================
-	-- BAY 2 VÒNG TRÒN TO
-	--========================
-	local rotation = 0
-
-	while tick() - StartTime < 4 do
-		rotation += 8
-
-		local rad = math.rad(rotation)
-
-		local x = math.cos(rad) * radius
-		local z = math.sin(rad) * radius
-
-		HRP.CFrame = CFrame.new(
-			center + Vector3.new(x,0,z)
-		)
-
-		task.wait(0.015)
-	end
-
-	--========================
-	-- KẾT THÚC
-	--========================
-	Humanoid.PlatformStand = false
-
-	if BV then
-		BV:Destroy()
-	end
-
-	Escaping = false
-end
-
---========================
--- PHÁT HIỆN BỊ ĐÁNH
---========================
-RunService.Heartbeat:Connect(function()
-	if not Character then
-		return
-	end
-
-	if not Humanoid then
-		return
-	end
-
-	if Humanoid.Health <= 0 then
-		return
-	end
-
-	-- Khi mất máu => kích hoạt trốn thoát
-	if Humanoid.Health < LastHealth then
-		task.spawn(EscapeMove)
-	end
-
-	LastHealth = Humanoid.Health
-end)
     -- ==================== HÀM KÉO THẢ TWEEN MƯỢT MÀ ====================
     local function MakeDraggableSmooth(gui)
         local dragging = false
