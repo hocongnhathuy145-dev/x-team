@@ -1,0 +1,243 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+-- Xóa GUI cũ
+if game.CoreGui:FindFirstChild("FlyGui") then
+    game.CoreGui.FlyGui:Destroy()
+end
+
+-- Tạo GUI
+local gui = Instance.new("ScreenGui")
+gui.Name = "FlyGui"
+gui.Parent = game.CoreGui
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+-- Tạo nút chính
+local mainButton = Instance.new("ImageButton")
+mainButton.Size = UDim2.new(0, 50, 0, 50)
+mainButton.Position = UDim2.new(0.5, -25, 0.5, -25)
+mainButton.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+mainButton.Image = ""
+mainButton.Parent = gui
+mainButton.ZIndex = 10
+mainButton.Active = true
+mainButton.Selectable = true
+
+local corner = Instance.new("UICorner")
+corner.CornerRadius = UDim.new(1, 0)
+corner.Parent = mainButton
+
+local buttonText = Instance.new("TextLabel")
+buttonText.Size = UDim2.new(1, 0, 1, 0)
+buttonText.BackgroundTransparency = 1
+buttonText.Text = "✈"
+buttonText.TextColor3 = Color3.new(1, 1, 1)
+buttonText.Font = Enum.Font.GothamBold
+buttonText.TextSize = 25
+buttonText.Parent = mainButton
+
+-- Tạo menu
+local menu = Instance.new("Frame")
+menu.Size = UDim2.new(0, 180, 0, 140)
+menu.Position = UDim2.new(0.5, -90, 0.6, -70)
+menu.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+menu.Visible = false
+menu.Parent = gui
+menu.ZIndex = 5
+
+local menuCorner = Instance.new("UICorner")
+menuCorner.CornerRadius = UDim.new(0, 10)
+menuCorner.Parent = menu
+
+-- Kéo thả nút chính
+local dragToggle = Instance.new("TextButton")
+dragToggle.Size = UDim2.new(1, 0, 1, 0)
+dragToggle.BackgroundTransparency = 1
+dragToggle.Text = ""
+dragToggle.Parent = mainButton
+dragToggle.ZIndex = 11
+
+local isDragging = false
+local dragStartPos = nil
+local originalPos = nil
+local hasMoved = false
+
+dragToggle.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDragging = true
+        hasMoved = false
+        dragStartPos = input.Position
+        originalPos = mainButton.Position
+    end
+end)
+
+dragToggle.InputChanged:Connect(function(input)
+    if isDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - dragStartPos
+        if delta.Magnitude > 5 then
+            hasMoved = true
+        end
+        if hasMoved then
+            mainButton.Position = UDim2.new(
+                originalPos.X.Scale,
+                originalPos.X.Offset + delta.X,
+                originalPos.Y.Scale,
+                originalPos.Y.Offset + delta.Y
+            )
+        end
+    end
+end)
+
+dragToggle.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        if not hasMoved then
+            menu.Visible = not menu.Visible
+        end
+        isDragging = false
+    end
+end)
+
+-- Nút bay
+local flyButton = Instance.new("TextButton")
+flyButton.Size = UDim2.new(0, 160, 0, 40)
+flyButton.Position = UDim2.new(0.5, -80, 0, 15)
+flyButton.Text = "Bay: TẮT"
+flyButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+flyButton.TextColor3 = Color3.new(1, 1, 1)
+flyButton.Font = Enum.Font.GothamBold
+flyButton.TextSize = 14
+flyButton.Parent = menu
+flyButton.ZIndex = 6
+Instance.new("UICorner", flyButton).CornerRadius = UDim.new(0, 8)
+
+-- Ô tốc độ
+local speedBox = Instance.new("TextBox")
+speedBox.Size = UDim2.new(0, 160, 0, 35)
+speedBox.Position = UDim2.new(0.5, -80, 0, 65)
+speedBox.Text = "50"
+speedBox.PlaceholderText = "Tốc độ"
+speedBox.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedBox.TextColor3 = Color3.new(1, 1, 1)
+speedBox.Font = Enum.Font.Gotham
+speedBox.TextSize = 14
+speedBox.Parent = menu
+speedBox.ZIndex = 6
+Instance.new("UICorner", speedBox).CornerRadius = UDim.new(0, 8)
+
+-- Label tốc độ
+local speedLabel = Instance.new("TextLabel")
+speedLabel.Size = UDim2.new(0, 160, 0, 20)
+speedLabel.Position = UDim2.new(0.5, -80, 0, 108)
+speedLabel.Text = "Tốc độ: 50"
+speedLabel.BackgroundTransparency = 1
+speedLabel.TextColor3 = Color3.fromRGB(180, 180, 180)
+speedLabel.Font = Enum.Font.Gotham
+speedLabel.TextSize = 12
+speedLabel.Parent = menu
+speedLabel.ZIndex = 6
+
+speedBox:GetPropertyChangedSignal("Text"):Connect(function()
+    speedLabel.Text = "Tốc độ: " .. (tonumber(speedBox.Text) or 50)
+end)
+
+-- ============================================
+-- HỆ THỐNG BAY (DÙNG NÚT DI CHUYỂN MẶC ĐỊNH)
+-- ============================================
+local flying = false
+local flyConnection = nil
+local lockedHeight = nil
+
+flyButton.MouseButton1Click:Connect(function()
+    flying = not flying
+    local char = LocalPlayer.Character
+    local hrp = char and char:FindFirstChild("HumanoidRootPart")
+    local humanoid = char and char:FindFirstChild("Humanoid")
+    
+    if flying and hrp and humanoid then
+        flyButton.Text = "Bay: BẬT"
+        flyButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
+        humanoid.PlatformStand = true
+        
+        -- Lưu độ cao hiện tại
+        lockedHeight = hrp.Position.Y
+        
+        local vel = Vector3.zero
+        
+        flyConnection = RunService.Heartbeat:Connect(function(dt)
+            if not hrp or not hrp.Parent then
+                flying = false
+                flyButton.Text = "Bay: TẮT"
+                flyButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+                lockedHeight = nil
+                if flyConnection then flyConnection:Disconnect() end
+                return
+            end
+            
+            local speed = tonumber(speedBox.Text) or 50
+            local cam = workspace.CurrentCamera
+            
+            -- Lấy hướng di chuyển từ MoveDirection (nút di chuyển mặc định mobile)
+            local moveDir = humanoid.MoveDirection
+            local dir = Vector3.zero
+            
+            if moveDir.Magnitude > 0 then
+                local forward = cam.CFrame.LookVector
+                local right = cam.CFrame.RightVector
+                
+                local inputX = moveDir:Dot(char.HumanoidRootPart.CFrame.RightVector)
+                local inputZ = moveDir:Dot(char.HumanoidRootPart.CFrame.LookVector)
+                
+                dir = (forward * inputZ) + (right * inputX)
+            end
+            
+            -- PC Input (WASD)
+            if UserInputService:IsKeyDown(Enum.KeyCode.W) then dir += cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.S) then dir -= cam.CFrame.LookVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.A) then dir -= cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.D) then dir += cam.CFrame.RightVector end
+            if UserInputService:IsKeyDown(Enum.KeyCode.Space) then dir += Vector3.yAxis end
+            if UserInputService:IsKeyDown(Enum.KeyCode.LeftShift) then dir -= Vector3.yAxis end
+            
+            if dir.Magnitude > 0 then
+                vel = vel:Lerp(dir.Unit * speed, 0.3)
+            else
+                vel = vel:Lerp(Vector3.zero, 0.2)
+            end
+            
+            local newCFrame = hrp.CFrame + (vel * dt)
+            
+            -- Giữ nguyên độ cao nếu không nhấn lên/xuống
+            if dir.Y == 0 then
+                if lockedHeight == nil then
+                    lockedHeight = hrp.Position.Y
+                end
+                newCFrame = CFrame.new(newCFrame.X, lockedHeight, newCFrame.Z)
+            else
+                lockedHeight = newCFrame.Y
+            end
+            
+            hrp.CFrame = newCFrame
+            hrp.AssemblyLinearVelocity = Vector3.zero
+        end)
+    else
+        flyButton.Text = "Bay: TẮT"
+        flyButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        lockedHeight = nil
+        if flyConnection then flyConnection:Disconnect() end
+        if humanoid then humanoid.PlatformStand = false end
+    end
+end)
+
+-- Tự tắt khi chết
+LocalPlayer.CharacterAdded:Connect(function()
+    if flying then
+        flying = false
+        flyButton.Text = "Bay: TẮT"
+        flyButton.BackgroundColor3 = Color3.fromRGB(80, 80, 80)
+        lockedHeight = nil
+        if flyConnection then flyConnection:Disconnect() end
+    end
+end)
