@@ -380,12 +380,12 @@ local function Cmd(m)
 		if p then
 			TG,E=p,true
 			Setup()
-			N("XTEAM RAGE","Target: "..p.DisplayName)
+			N(";XTEAM RAGE","Target: "..p.DisplayName)
 		end
 	elseif a[2] and a[2]:lower()=="unrage" then
 		E,TG=false,nil
 		if BV then BV:Destroy() BV=nil end
-		N("XTEAM RAGE","Disabled")
+		N(";XTEAM RAGE","Disabled")
 	end
 end
 
