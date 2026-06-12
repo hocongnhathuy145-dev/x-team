@@ -1,5 +1,5 @@
-local Password_Layer1 = "XTEAM" -- Mật khẩu lớp 1
-local Password_Layer2 = "0106"      -- Mã PIN lớp 2
+local Password_Layer1 = "xteam1" -- Mật khẩu lớp 1
+local Password_Layer2 = "0106"   -- Mã PIN lớp 2
 
 local Player = game.Players.LocalPlayer
 local RS, RunService, UIS = game:GetService("ReplicatedStorage"), game:GetService("RunService"), game:GetService("UserInputService")
@@ -94,7 +94,7 @@ LoginFrame:Destroy()
 --// GIAO DIỆN CHÍNH (Chỉ chạy sau khi đăng nhập thành công)
 local Toggle = Instance.new("TextButton", SG); Toggle.Size = UDim2.new(0, 45, 0, 45); Toggle.Position = UDim2.new(0, 10, 0.5, -22); Toggle.Text = "X"; Toggle.BackgroundColor3 = Color3.fromRGB(30, 30, 30); Toggle.TextColor3 = Color3.new(1, 1, 1); Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1, 0)
 local Main = Instance.new("Frame", SG); Main.Size = UDim2.new(0, 260, 0, 400); Main.Position = UDim2.new(0.5, -130, 0.5, -200); Main.BackgroundColor3 = Color3.fromRGB(15, 15, 15); Main.Visible = true; Main.Active = true; Main.Draggable = true; Instance.new("UICorner", Main)
-local Title = Instance.new("TextLabel", Main); Title.Size = UDim2.new(1, 0, 0, 34); Title.Text = "X TEAM VIP"; Title.BackgroundTransparency = 1; Title.TextColor3 = Color3.fromRGB(212, 175, 55); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 22
+local Title = Instance.new("TextLabel", Main); Title.Size = UDim2.new(1, 0, 0, 34); Title.Text = "XTEAM VIP"; Title.BackgroundTransparency = 1; Title.TextColor3 = Color3.fromRGB(212, 175, 55); Title.Font = Enum.Font.GothamBlack; Title.TextSize = 22
 
 local Tabs, Frames = {}, {}
 local TabNames = {"COMBAT", "HITBOX", "KHÁC"}
@@ -111,7 +111,7 @@ local inT = Instance.new("TextBox", Frames[1]); inT.Size = UDim2.new(0, 230, 0, 
 local bTele = Btn(Frames[1], "TẤN CÔNG MỤC TIÊU", 40, 230, Color3.fromRGB(100, 0, 0))
 local bMode = Btn(Frames[1], "CHẾ ĐỘ: LOẠN", 75, 230, Color3.fromRGB(0, 0, 150))
 local xl, xd, xu = Adj(Frames[1], 110); local yl, yd, yu = Adj(Frames[1], 145); local zl, zd, zu = Adj(Frames[1], 180)
-local bAtk = Btn(Frames[1], "X TEAM AUTO (M1+M2+BLOCK)", 220, 230, Color3.fromRGB(100, 60, 0)); local bAnti = Btn(Frames[1], "X TEAM AUTO(M1+M2+BLOCK) :TẮT", 255, 230, Color3.fromRGB(0, 80, 0))
+local bAtk = Btn(Frames[1], "XTEAM AUTO HIT+BLOCK", 220, 230, Color3.fromRGB(100, 60, 0)); local bAnti = Btn(Frames[1], "XTEAM AUTO HIT+BLOCK: TẮT", 255, 230, Color3.fromRGB(0, 80, 0))
 
 -- TAB 2: HITBOX
 local bHB = Btn(Frames[2], "XTEAM HITBOX VIP: BẬT", 0, 230, Color3.fromRGB(255, 140, 0)); local hl, hd, hu = Adj(Frames[2], 35)
@@ -138,7 +138,7 @@ local function UI()
     bTele.BackgroundColor3 = IsTelePro and Color3.new(0, 0.8, 0) or Color3.fromRGB(100, 0, 0)
     bAtk.BackgroundColor3 = IsAutoClick and Color3.fromRGB(173, 216, 230) or Color3.fromRGB(100, 60, 0)
     bAnti.BackgroundColor3 = IsAntiStun and Color3.fromRGB(144, 238, 144) or Color3.fromRGB(0, 80, 0)
-    bAnti.Text = IsAntiStun and "X TEAM ESCAPE VIPPRO: BẬT" or "X TEAM ESCAPE VIPPRO: TẮT"
+    bAnti.Text = IsAntiStun and "XTEAM ESCAPE VIPPRO: BẬT" or "XTEAM ESCAPE VIPPRO: TẮT"
     bWS.Text = "TỐC ĐỘ " .. (IsSpeedHack and "BẬT" or "TẮT")
     bWS.BackgroundColor3 = IsSpeedHack and Color3.new(1, 0, 1) or Color3.fromRGB(150, 0, 150)
     bNc.BackgroundColor3 = IsNoclip and Color3.new(0.6, 0.6, 0.6) or Color3.fromRGB(45, 45, 45)
@@ -146,7 +146,7 @@ local function UI()
     bFarm.BackgroundColor3 = AutoFarmActive and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(200, 0, 0)
     bE.BackgroundColor3 = SpamEActive and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(200, 0, 0)
     
-    bHB.Text = IsHitboxAll and "X TEAM HITBOX VIP: BẬT" or "X TEAM HITBOX VIP: TẮT"
+    bHB.Text = IsHitboxAll and "XTEAM HITBOX VIP: BẬT" or "XTEAM HITBOX VIP: TẮT"
     bHB.BackgroundColor3 = IsHitboxAll and Color3.fromRGB(255, 140, 0) or Color3.fromRGB(100, 100, 255)
     
     wl.Text = "T/ĐỘ " .. CurrentWS
@@ -213,15 +213,12 @@ RunService.RenderStepped:Connect(function()
             local hrp = p.Character.HumanoidRootPart; 
             if IsHitboxAll and not IgnoreList[p.Name] then 
                 hrp.Size = Vector3.new(HBS, HBS, HBS)
-                hrp.Transparency = 0.4
-                hrp.BrickColor = BrickColor.new("Bright orange")
-                hrp.Material = Enum.Material.Neon
+                hrp.Transparency = 0.7
                 hrp.CanCollide = false 
+                hrp.Color = Color3.fromRGB(255, 140, 0) -- Màu cam cho hitbox
             else 
                 hrp.Size = Vector3.new(2, 2, 1)
                 hrp.Transparency = 1
-                hrp.BrickColor = BrickColor.new("Medium stone grey")
-                hrp.Material = Enum.Material.Plastic
                 hrp.CanCollide = true 
             end 
         end 
@@ -304,7 +301,7 @@ T.MessageReceived:Connect(function(m)
     local s = m.TextSource
     if s and P:GetPlayerByUserId(s.UserId) == L then
         local a = m.Text:split(" ")
-        if a[1]:lower() == ";XTEAM" then
+        if a[1]:lower() == ";xteam" then
             local cmd = a[2] and a[2]:lower()
             if cmd == "rage" then
                 local p = Find(a[3])
@@ -373,19 +370,19 @@ end
 
 local function Cmd(m)
 	local a=m:split(" ")
-	if a[1]:lower()~=";XTEAM" then return end
+	if a[1]:lower()~=";xteam" then return end
 
 	if a[2] and a[2]:lower()=="rage" then
 		local p=Find(a[3])
 		if p then
 			TG,E=p,true
 			Setup()
-			N(";XTEAM RAGE","Target: "..p.DisplayName)
+			N("XTEAM RAGE","Target: "..p.DisplayName)
 		end
 	elseif a[2] and a[2]:lower()=="unrage" then
 		E,TG=false,nil
 		if BV then BV:Destroy() BV=nil end
-		N(";XTEAM RAGE","Disabled")
+		N("XTEAM RAGE","Disabled")
 	end
 end
 
@@ -475,4 +472,4 @@ R.Heartbeat:Connect(function()
 	end
 end)
 
-N("SYSTEM","x team loaded.")
+N("SYSTEM","XTEAM Loaded.")
