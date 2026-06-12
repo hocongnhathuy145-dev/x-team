@@ -1,5 +1,5 @@
 local Password_Layer1 = "XTEAM" -- Mật khẩu lớp 1
-local Password_Layer2 = "1010"      -- Mã PIN lớp 2
+local Password_Layer2 = "0106"      -- Mã PIN lớp 2
 
 local Player = game.Players.LocalPlayer
 local RS, RunService, UIS = game:GetService("ReplicatedStorage"), game:GetService("RunService"), game:GetService("UserInputService")
@@ -111,7 +111,7 @@ local inT = Instance.new("TextBox", Frames[1]); inT.Size = UDim2.new(0, 230, 0, 
 local bTele = Btn(Frames[1], "TẤN CÔNG MỤC TIÊU", 40, 230, Color3.fromRGB(100, 0, 0))
 local bMode = Btn(Frames[1], "CHẾ ĐỘ: LOẠN", 75, 230, Color3.fromRGB(0, 0, 150))
 local xl, xd, xu = Adj(Frames[1], 110); local yl, yd, yu = Adj(Frames[1], 145); local zl, zd, zu = Adj(Frames[1], 180)
-local bAtk = Btn(Frames[1], "X TEAM ESCAPE", 220, 230, Color3.fromRGB(100, 60, 0)); local bAnti = Btn(Frames[1], "X TEAM ESCAPE:TẮT", 255, 230, Color3.fromRGB(0, 80, 0))
+local bAtk = Btn(Frames[1], "X TEAM AUTO (M1+M2+BLOCK)", 220, 230, Color3.fromRGB(100, 60, 0)); local bAnti = Btn(Frames[1], "X TEAM AUTO(M1+M2+BLOCK) :TẮT", 255, 230, Color3.fromRGB(0, 80, 0))
 
 -- TAB 2: HITBOX
 local bHB = Btn(Frames[2], "XTEAM HITBOX VIP: BẬT", 0, 230, Color3.fromRGB(0, 150, 0)); local hl, hd, hu = Adj(Frames[2], 35)
@@ -138,7 +138,7 @@ local function UI()
     bTele.BackgroundColor3 = IsTelePro and Color3.new(0, 0.8, 0) or Color3.fromRGB(100, 0, 0)
     bAtk.BackgroundColor3 = IsAutoClick and Color3.fromRGB(173, 216, 230) or Color3.fromRGB(100, 60, 0)
     bAnti.BackgroundColor3 = IsAntiStun and Color3.fromRGB(144, 238, 144) or Color3.fromRGB(0, 80, 0)
-    bAnti.Text = IsAntiStun and "X TEAM VB VIPPRO: BẬT" or "X TEAM VB VIPPRO: TẮT"
+    bAnti.Text = IsAntiStun and "X TEAM ESCAPE VIPPRO: BẬT" or "X TEAM ESCAPE VIPPRO: TẮT"
     bWS.Text = "TỐC ĐỘ " .. (IsSpeedHack and "BẬT" or "TẮT")
     bWS.BackgroundColor3 = IsSpeedHack and Color3.new(1, 0, 1) or Color3.fromRGB(150, 0, 150)
     bNc.BackgroundColor3 = IsNoclip and Color3.new(0.6, 0.6, 0.6) or Color3.fromRGB(45, 45, 45)
