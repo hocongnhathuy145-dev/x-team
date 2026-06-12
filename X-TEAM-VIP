@@ -114,7 +114,7 @@ local xl, xd, xu = Adj(Frames[1], 110); local yl, yd, yu = Adj(Frames[1], 145); 
 local bAtk = Btn(Frames[1], "X TEAM AUTO (M1+M2+BLOCK)", 220, 230, Color3.fromRGB(100, 60, 0)); local bAnti = Btn(Frames[1], "X TEAM AUTO(M1+M2+BLOCK) :TẮT", 255, 230, Color3.fromRGB(0, 80, 0))
 
 -- TAB 2: HITBOX
-local bHB = Btn(Frames[2], "XTEAM HITBOX VIP: BẬT", 0, 230, Color3.fromRGB(0, 150, 0)); local hl, hd, hu = Adj(Frames[2], 35)
+local bHB = Btn(Frames[2], "XTEAM HITBOX VIP: BẬT", 0, 230, Color3.fromRGB(255, 140, 0)); local hl, hd, hu = Adj(Frames[2], 35)
 local Scroll = Instance.new("ScrollingFrame", Frames[2]); Scroll.Size = UDim2.new(1, 0, 1, -80); Scroll.Position = UDim2.new(0, 0, 0, 70); Scroll.BackgroundColor3 = Color3.fromRGB(25, 25, 30); Scroll.ScrollBarThickness = 4; local Layout = Instance.new("UIListLayout", Scroll)
 
 local function UpdateList() 
@@ -147,7 +147,7 @@ local function UI()
     bE.BackgroundColor3 = SpamEActive and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(200, 0, 0)
     
     bHB.Text = IsHitboxAll and "X TEAM HITBOX VIP: BẬT" or "X TEAM HITBOX VIP: TẮT"
-    bHB.BackgroundColor3 = IsHitboxAll and Color3.fromRGB(0, 150, 0) or Color3.fromRGB(100, 100, 255)
+    bHB.BackgroundColor3 = IsHitboxAll and Color3.fromRGB(255, 140, 0) or Color3.fromRGB(100, 100, 255)
     
     wl.Text = "T/ĐỘ " .. CurrentWS
     xl.Text = "X " .. OX; yl.Text = "Y " .. OY; zl.Text = "Z " .. OZ
@@ -213,11 +213,15 @@ RunService.RenderStepped:Connect(function()
             local hrp = p.Character.HumanoidRootPart; 
             if IsHitboxAll and not IgnoreList[p.Name] then 
                 hrp.Size = Vector3.new(HBS, HBS, HBS)
-                hrp.Transparency = 0.7
+                hrp.Transparency = 0.4
+                hrp.BrickColor = BrickColor.new("Bright orange")
+                hrp.Material = Enum.Material.Neon
                 hrp.CanCollide = false 
             else 
                 hrp.Size = Vector3.new(2, 2, 1)
                 hrp.Transparency = 1
+                hrp.BrickColor = BrickColor.new("Medium stone grey")
+                hrp.Material = Enum.Material.Plastic
                 hrp.CanCollide = true 
             end 
         end 
