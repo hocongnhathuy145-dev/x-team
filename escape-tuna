@@ -1,0 +1,174 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local LocalPlayer = Players.LocalPlayer
+
+-- [ 1. CONFIG CHỈ SỐ CHUYỂN ĐỘNG ]
+local EVADE_HEIGHT = 1000     -- Chiều cao tối đa (Block)
+local EVADE_DURATION = 4     -- Đúng 4 giây kết thúc như bro yêu cầu
+local ZICZAC_SPEED = 160     -- Tốc độ tịnh tiến siêu tốc
+local ZICZAC_AMPLITUDE = 90  -- Biên độ đảo rộng né hitbox
+
+local isEvading = false
+local lastHealth = 100
+
+-- [ 2. GIAO DIỆN CHUẨN VIP - NÚT TRÒN ẨN HIỆN ]
+local ScreenGui = Instance.new("ScreenGui")
+local ToggleHubBtn = Instance.new("TextButton") -- Nút tròn thu gọn
+local BtnCorner = Instance.new("UICorner")
+local MainFrame = Instance.new("Frame") -- Menu chính
+local FrameCorner = Instance.new("UICorner")
+local FrameStroke = Instance.new("UIStroke")
+local ActionBtn = Instance.new("TextButton")
+
+ScreenGui.Name = "TunaEvadeV3"
+ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+ScreenGui.ResetOnSpawn = false
+
+-- 2.1 NÚT TRÒN GỌN GÀNG (Chỉ hiện chữ T để không vướng màn hình)
+ToggleHubBtn.Name = "ToggleHubBtn"
+ToggleHubBtn.Parent = ScreenGui
+ToggleHubBtn.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+ToggleHubBtn.Position = UDim2.new(0.02, 0, 0.2, 0)
+ToggleHubBtn.Size = UDim2.new(0, 35, 0, 35)
+ToggleHubBtn.Font = Enum.Font.GothamBold
+ToggleHubBtn.Text = "T"
+ToggleHubBtn.TextColor3 = Color3.fromRGB(0, 255, 130)
+ToggleHubBtn.TextSize = 16
+ToggleHubBtn.Active = true
+ToggleHubBtn.Draggable = true
+
+BtnCorner.CornerRadius = UDim.new(1, 0) -- Ép thành hình tròn
+BtnCorner.Parent = ToggleHubBtn
+
+local BtnStroke = Instance.new("UIStroke")
+BtnStroke.Color = Color3.fromRGB(0, 255, 130)
+BtnStroke.Thickness = 1.5
+BtnStroke.Parent = ToggleHubBtn
+
+-- 2.2 KHUNG MENU CHÍNH (Mặc định ẩn - Scale bằng 0)
+MainFrame.Name = "MainFrame"
+MainFrame.Parent = ScreenGui
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 15)
+MainFrame.Position = UDim2.new(0.02, 45, 0.2, 0)
+MainFrame.Size = UDim2.new(0, 160, 0, 45)
+MainFrame.ClipsDescendants = true
+MainFrame.Visible = false
+
+FrameCorner.CornerRadius = UDim.new(0, 6)
+FrameCorner.Parent = MainFrame
+
+FrameStroke.Color = Color3.fromRGB(255, 60, 60)
+FrameStroke.Thickness = 1.5
+FrameStroke.Parent = MainFrame
+
+ActionBtn.Name = "ActionBtn"
+ActionBtn.Parent = MainFrame
+ActionBtn.BackgroundTransparency = 1
+ActionBtn.Size = UDim2.new(1, 0, 1, 0)
+ActionBtn.Font = Enum.Font.GothamBold
+ActionBtn.Text = "SYSTEM: OFF"
+ActionBtn.TextColor3 = Color3.fromRGB(255, 60, 60)
+ActionBtn.TextSize = 12
+
+-- Cơ chế bấm nút Tròn để Ẩn/Hiện Menu chính mượt mà
+local menuOpen = false
+ToggleHubBtn.MouseButton1Click:Connect(function()
+    menuOpen = not menuOpen
+    if menuOpen then
+        MainFrame.Visible = true
+        MainFrame:TweenSize(UDim2.new(0, 160, 0, 45), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+    else
+        MainFrame:TweenSize(UDim2.new(0, 0, 0, 45), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.2, true, function()
+            MainFrame.Visible = false
+        end)
+    end
+end)
+
+-- Bật/Tắt chức năng trốn thoát
+_G.EvadeSystemActive = false
+ActionBtn.MouseButton1Click:Connect(function()
+    _G.EvadeSystemActive = not _G.EvadeSystemActive
+    local targetColor = _G.EvadeSystemActive and Color3.fromRGB(0, 255, 130) or Color3.fromRGB(255, 60, 60)
+    ActionBtn.Text = _G.EvadeSystemActive and "SYSTEM: ACTIVE" or "SYSTEM: OFF"
+    
+    TweenService:Create(ActionBtn, TweenInfo.new(0.2), {TextColor3 = targetColor}):Play()
+    TweenService:Create(FrameStroke, TweenInfo.new(0.2), {Color = targetColor}):Play()
+end)
+
+-- [ 3. THUẬT TOÁN ĐẢO 3D TOÀN DIỆN (DỌC - NGANG - XOẮN ỐC) ]
+local function StartAdvancedEvade()
+    if isEvading then return end
+    isEvading = true
+    
+    local MyChar = LocalPlayer.Character
+    local MyHRP = MyChar and MyChar:FindFirstChild("HumanoidRootPart")
+    local MyHum = MyChar and MyChar:FindFirstChild("Humanoid")
+    
+    if not MyHRP or not MyHum then isEvading = false return end
+    
+    -- Bước 1: Vọt nhanh lên 1000 block chống Check-Teleport
+    local startPos = MyHRP.Position
+    local targetAirPos = startPos + Vector3.new(0, EVADE_HEIGHT, 0)
+    
+    local jumpTime = 0
+    while jumpTime < 0.25 do
+        jumpTime = jumpTime + RunService.Heartbeat:Wait()
+        MyHRP.CFrame = CFrame.new(startPos:Lerp(targetAirPos, jumpTime / 0.25))
+    end
+    
+    -- Bước 2: Quỹ đạo lướt hỗn loạn đan xen Dọc/Ngang/Tròn trong đúng 4 giây
+    local startTime = tick()
+    local count = 0
+    
+    while tick() - startTime < EVADE_DURATION do
+        RunService.Heartbeat:Wait()
+        if not MyHRP or not MyHum or MyHum.Health <= 0 then break end
+        
+        -- No-Clip liên tục bám map không kẹt
+        for _, part in pairs(MyChar:GetChildren()) do
+            if part:IsA("BasePart") then part.CanCollide = false end
+        end
+        
+        count = count + 1
+        local timePassed = tick() - startTime
+        
+        -- Toán học lượng giác đảo chiều liên tục
+        local angleX = math.rad(count * 12)
+        local angleZ = math.rad(count * 15)
+        
+        -- 1. Đảo Ngang (Mở rộng biên độ sang hai bên)
+        local sideMove = MyHRP.CFrame.RightVector * math.sin(angleX) * ZICZAC_AMPLITUDE
+        
+        -- 2. Đảo Dọc (Lướt lên/về phía trước theo dạng sóng gợn)
+        local forwardMove = MyHRP.CFrame.LookVector * math.cos(angleZ) * (ZICZAC_SPEED / 45)
+        
+        -- 3. Tạo hiệu ứng xoắn ốc hỗn loạn ở giây thứ 2 và 3 để xé nhỏ hoàn toàn Hitbox
+        local spiralMove = Vector3.new(0, 0, 0)
+        if timePassed > 1.5 and timePassed < 3.5 then
+            spiralMove = MyHRP.CFrame.RightVector * math.cos(angleX) * (ZICZAC_AMPLITUDE / 2)
+        end
+        
+        -- Ép dịch chuyển tuyến tính mượt từng Frame (No Fly Cheat Detection)
+        MyHRP.CFrame = CFrame.new(MyHRP.Position + forwardMove + sideMove + spiralMove) * CFrame.Angles(0, math.rad(math.sin(angleX) * 20), 0)
+        MyHRP.Velocity = Vector3.new(0, 0, 0)
+    end
+    
+    isEvading = false
+end
+
+-- [ 4. PHÁT HIỆN DÍNH SÁT THƯƠNG ]
+RunService.Heartbeat:Connect(function()
+    if not _G.EvadeSystemActive then return end
+    local MyChar = LocalPlayer.Character
+    local MyHum = MyChar and MyChar:FindFirstChildOfClass("Humanoid")
+    
+    if MyHum then
+        if MyHum.Health < lastHealth and MyHum.Health > 0 then
+            task.spawn(StartAdvancedEvade)
+        end
+        lastHealth = MyHum.Health
+    else
+        lastHealth = 100
+    end
+end)
