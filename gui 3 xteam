@@ -1,0 +1,907 @@
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+
+local uiParent = nil
+pcall(function() if CoreGui then uiParent = CoreGui end end)
+if not uiParent then
+    repeat task.wait(0.1) until player:FindFirstChild("PlayerGui")
+    uiParent = player:FindFirstChild("PlayerGui")
+end
+if not uiParent then return end
+
+if uiParent:FindFirstChild("XSystemGui") then uiParent:FindFirstChild("XSystemGui"):Destroy() end
+
+local SG = Instance.new("ScreenGui", uiParent)
+SG.Name = "XSystemGui"
+SG.ResetOnSpawn = false
+SG.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local IsTelePro = false
+local IsBringLoop = false
+local IsNoclip = false
+local AutoFarmActive = false
+local isZicZac = false
+local isEscaping = false
+local circleAngle = 0
+local upDownCounter = 0
+local selectedTarget = nil
+local autoEscapeEnabled = false
+
+local Config = {
+    IsAutoClick = false,
+    IsAutoReblock = false,
+    IsHitboxExtend = false,
+    HitboxSize = 20,
+    HitboxWhitelist = {},
+    OX = 0, OY = 10, OZ = 0,
+    ZZSpeed = 14, ZZRange = 12, ZZUpDownSpeed = 70,
+    LightningJitter = 4.5,
+    EscapeSpeed = 200,
+    EscapeDistanceX = 100,
+    EscapeHeight = 100,
+    EscapeZicZacIntensity = 80,
+    EscapeZicZacSpeed = 25,
+    IsSpeedHack = false, CustomSpeed = 120, IsInfJump = false,
+    IsJumpPower = false, JumpPower = 150,
+}
+
+local CombatRemote = game:GetService("ReplicatedStorage"):FindFirstChild("CombatRemote") or game:GetService("ReplicatedStorage"):FindFirstChild("Combat")
+
+-- ==================== HÀM KÉO THẢ ====================
+local function MakeDraggable(gui)
+    local dragging, dragInput, dragStart, startPos
+    gui.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = gui.Position
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    gui.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+            dragInput = input
+        end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            gui.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- ==================== THANH DỌC CHỨA 3 GUI TRÒN ====================
+local mainBar = Instance.new("Frame", SG)
+mainBar.Size = UDim2.new(0, 70, 0, 230)
+mainBar.Position = UDim2.new(0, 10, 0.3, 0)
+mainBar.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+mainBar.BackgroundTransparency = 0.2
+mainBar.ZIndex = 10
+Instance.new("UICorner", mainBar).CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", mainBar).Color = Color3.fromRGB(212, 175, 55)
+MakeDraggable(mainBar)
+
+-- ==================== FRAME COMBAT (X) ====================
+local combatFrame = Instance.new("Frame", SG)
+combatFrame.Size = UDim2.new(0, 300, 0, 450)
+combatFrame.Position = UDim2.new(0, 90, 0.3, 0)
+combatFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+combatFrame.Visible = false
+combatFrame.ZIndex = 5
+Instance.new("UICorner", combatFrame)
+Instance.new("UIStroke", combatFrame).Color = Color3.fromRGB(120, 0, 0)
+MakeDraggable(combatFrame)
+
+-- ==================== FRAME HITBOX (HB) ====================
+local hitboxFrame = Instance.new("Frame", SG)
+hitboxFrame.Size = UDim2.new(0, 300, 0, 400)
+hitboxFrame.Position = UDim2.new(0, 90, 0.3, 0)
+hitboxFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+hitboxFrame.Visible = false
+hitboxFrame.ZIndex = 5
+Instance.new("UICorner", hitboxFrame)
+Instance.new("UIStroke", hitboxFrame).Color = Color3.fromRGB(0, 170, 0)
+MakeDraggable(hitboxFrame)
+
+-- ==================== FRAME ESCAPE (🐍) ====================
+local escapeFrame = Instance.new("Frame", SG)
+escapeFrame.Size = UDim2.new(0, 300, 0, 370)
+escapeFrame.Position = UDim2.new(0, 90, 0.3, 0)
+escapeFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+escapeFrame.Visible = false
+escapeFrame.ZIndex = 5
+Instance.new("UICorner", escapeFrame)
+Instance.new("UIStroke", escapeFrame).Color = Color3.fromRGB(0, 80, 120)
+MakeDraggable(escapeFrame)
+
+-- ==================== GUI 1: X (COMBAT) ====================
+local gui1 = Instance.new("TextButton", mainBar)
+gui1.Size = UDim2.new(0, 55, 0, 55)
+gui1.Position = UDim2.new(0.5, -27, 0, 10)
+gui1.Text = "✕"
+gui1.BackgroundColor3 = Color3.fromRGB(120, 0, 0)
+gui1.TextColor3 = Color3.fromRGB(255, 255, 255)
+gui1.Font = Enum.Font.GothamBlack
+gui1.TextSize = 24
+gui1.ZIndex = 15
+Instance.new("UICorner", gui1).CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", gui1).Color = Color3.fromRGB(255, 100, 100)
+
+gui1.MouseButton1Click:Connect(function()
+    combatFrame.Visible = not combatFrame.Visible
+    if combatFrame.Visible then
+        hitboxFrame.Visible = false
+        escapeFrame.Visible = false
+    end
+end)
+
+-- ==================== GUI 2: HB (HITBOX) ====================
+local gui2 = Instance.new("TextButton", mainBar)
+gui2.Size = UDim2.new(0, 55, 0, 55)
+gui2.Position = UDim2.new(0.5, -27, 0, 85)
+gui2.Text = "HB"
+gui2.BackgroundColor3 = Color3.fromRGB(0, 100, 0)
+gui2.TextColor3 = Color3.fromRGB(255, 255, 255)
+gui2.Font = Enum.Font.GothamBlack
+gui2.TextSize = 22
+gui2.ZIndex = 15
+Instance.new("UICorner", gui2).CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", gui2).Color = Color3.fromRGB(100, 255, 100)
+
+gui2.MouseButton1Click:Connect(function()
+    hitboxFrame.Visible = not hitboxFrame.Visible
+    if hitboxFrame.Visible then
+        combatFrame.Visible = false
+        escapeFrame.Visible = false
+    end
+end)
+
+-- ==================== GUI 3: 🐍 (ESCAPE) ====================
+local gui3 = Instance.new("TextButton", mainBar)
+gui3.Size = UDim2.new(0, 55, 0, 55)
+gui3.Position = UDim2.new(0.5, -27, 0, 160)
+gui3.Text = "🐍"
+gui3.BackgroundColor3 = Color3.fromRGB(0, 80, 120)
+gui3.TextColor3 = Color3.fromRGB(255, 255, 255)
+gui3.Font = Enum.Font.GothamBlack
+gui3.TextSize = 24
+gui3.ZIndex = 15
+Instance.new("UICorner", gui3).CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", gui3).Color = Color3.fromRGB(100, 200, 255)
+
+gui3.MouseButton1Click:Connect(function()
+    escapeFrame.Visible = not escapeFrame.Visible
+    if escapeFrame.Visible then
+        combatFrame.Visible = false
+        hitboxFrame.Visible = false
+    end
+end)
+
+-- ==================== XÂY DỰNG NỘI DUNG COMBAT FRAME ====================
+local combatScrolling = Instance.new("ScrollingFrame", combatFrame)
+combatScrolling.Size = UDim2.new(1, -10, 1, -10)
+combatScrolling.Position = UDim2.new(0, 5, 0, 5)
+combatScrolling.BackgroundTransparency = 1
+combatScrolling.ScrollBarThickness = 3
+combatScrolling.CanvasSize = UDim2.new(0, 0, 0, 800)
+combatScrolling.ZIndex = 6
+
+local combatList = Instance.new("UIListLayout", combatScrolling)
+combatList.Padding = UDim.new(0, 5)
+
+local cTitle = Instance.new("TextLabel", combatScrolling)
+cTitle.Size = UDim2.new(1, 0, 0, 25)
+cTitle.Text = "⚔️ COMBAT SYSTEM"
+cTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+cTitle.BackgroundTransparency = 1
+cTitle.Font = Enum.Font.GothamBold
+cTitle.TextSize = 14
+cTitle.ZIndex = 6
+
+local nameBox = Instance.new("TextBox", combatScrolling)
+nameBox.Size = UDim2.new(1, 0, 0, 35)
+nameBox.PlaceholderText = "Nhập tên mục tiêu..."
+nameBox.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+nameBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+nameBox.Font = Enum.Font.Gotham
+nameBox.TextSize = 14
+nameBox.ZIndex = 6
+Instance.new("UICorner", nameBox)
+
+-- Nút Auto M1 + M2
+local m1m2Btn = Instance.new("TextButton", combatScrolling)
+m1m2Btn.Size = UDim2.new(1, 0, 0, 40)
+m1m2Btn.Text = "BẬT AUTO M1 + M2"
+m1m2Btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+m1m2Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+m1m2Btn.Font = Enum.Font.GothamBold
+m1m2Btn.TextSize = 12
+m1m2Btn.ZIndex = 6
+Instance.new("UICorner", m1m2Btn)
+
+m1m2Btn.MouseButton1Click:Connect(function()
+    Config.IsAutoClick = not Config.IsAutoClick
+    m1m2Btn.BackgroundColor3 = Config.IsAutoClick and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60, 60, 60)
+    m1m2Btn.Text = Config.IsAutoClick and "ĐANG BẬT AUTO M1 + M2" or "BẬT AUTO M1 + M2"
+end)
+
+-- Nút Auto Block
+local blockBtn = Instance.new("TextButton", combatScrolling)
+blockBtn.Size = UDim2.new(1, 0, 0, 40)
+blockBtn.Text = "BẬT AUTO BLOCK"
+blockBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+blockBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+blockBtn.Font = Enum.Font.GothamBold
+blockBtn.TextSize = 12
+blockBtn.ZIndex = 6
+Instance.new("UICorner", blockBtn)
+
+blockBtn.MouseButton1Click:Connect(function()
+    Config.IsAutoReblock = not Config.IsAutoReblock
+    blockBtn.BackgroundColor3 = Config.IsAutoReblock and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60, 60, 60)
+    blockBtn.Text = Config.IsAutoReblock and "ĐANG BẬT AUTO BLOCK" or "BẬT AUTO BLOCK"
+end)
+
+-- Nút Teleport Pro
+local tpBtn = Instance.new("TextButton", combatScrolling)
+tpBtn.Size = UDim2.new(1, 0, 0, 40)
+tpBtn.Text = "TELEPORT PRO ⚡"
+tpBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+tpBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+tpBtn.Font = Enum.Font.GothamBold
+tpBtn.TextSize = 12
+tpBtn.ZIndex = 6
+Instance.new("UICorner", tpBtn)
+
+tpBtn.MouseButton1Click:Connect(function()
+    IsTelePro = not IsTelePro
+    if IsTelePro then
+        tpBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+        tpBtn.Text = "ĐANG BÁM ⚡"
+    else
+        tpBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+        tpBtn.Text = "TELEPORT PRO ⚡"
+        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            player.Character.HumanoidRootPart.Velocity = Vector3.zero
+        end
+    end
+end)
+
+-- Nút Zic Zac
+local zzBtn = Instance.new("TextButton", combatScrolling)
+zzBtn.Size = UDim2.new(1, 0, 0, 40)
+zzBtn.Text = "BẬT ZIC ZAC SẤM SÉT ⚡"
+zzBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+zzBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+zzBtn.Font = Enum.Font.GothamBold
+zzBtn.TextSize = 12
+zzBtn.ZIndex = 6
+Instance.new("UICorner", zzBtn)
+
+zzBtn.MouseButton1Click:Connect(function()
+    isZicZac = not isZicZac
+    zzBtn.BackgroundColor3 = isZicZac and Color3.fromRGB(0, 130, 230) or Color3.fromRGB(60, 60, 60)
+    zzBtn.Text = isZicZac and "SẤM SÉT: BẬT ⚡" or "BẬT ZIC ZAC SẤM SÉT ⚡"
+end)
+
+-- Hàm tạo thanh điều chỉnh
+local function CreateSlider(parent, label, default, callback, step)
+    local frame = Instance.new("Frame", parent)
+    frame.Size = UDim2.new(1, 0, 0, 50)
+    frame.BackgroundTransparency = 1
+    frame.ZIndex = 6
+
+    local lbl = Instance.new("TextLabel", frame)
+    lbl.Size = UDim2.new(1, 0, 0, 15)
+    lbl.Text = label
+    lbl.TextColor3 = Color3.fromRGB(200, 200, 200)
+    lbl.BackgroundTransparency = 1
+    lbl.Font = Enum.Font.Gotham
+    lbl.TextSize = 10
+    lbl.TextXAlignment = Enum.TextXAlignment.Left
+    lbl.ZIndex = 6
+
+    local box = Instance.new("TextBox", frame)
+    box.Size = UDim2.new(0.3, 0, 0, 25)
+    box.Position = UDim2.new(0, 0, 0, 18)
+    box.Text = tostring(default)
+    box.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    box.TextColor3 = Color3.fromRGB(255, 255, 255)
+    box.Font = Enum.Font.GothamBold
+    box.TextSize = 12
+    box.ZIndex = 6
+    Instance.new("UICorner", box)
+
+    local minus = Instance.new("TextButton", frame)
+    minus.Size = UDim2.new(0.25, 0, 0, 25)
+    minus.Position = UDim2.new(0.35, 0, 0, 18)
+    minus.Text = "-"
+    minus.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+    minus.TextColor3 = Color3.fromRGB(255, 255, 255)
+    minus.Font = Enum.Font.GothamBlack
+    minus.TextSize = 16
+    minus.ZIndex = 6
+    Instance.new("UICorner", minus)
+
+    local plus = Instance.new("TextButton", frame)
+    plus.Size = UDim2.new(0.25, 0, 0, 25)
+    plus.Position = UDim2.new(0.75, 0, 0, 18)
+    plus.Text = "+"
+    plus.BackgroundColor3 = Color3.fromRGB(40, 150, 40)
+    plus.TextColor3 = Color3.fromRGB(255, 255, 255)
+    plus.Font = Enum.Font.GothamBlack
+    plus.TextSize = 16
+    plus.ZIndex = 6
+    Instance.new("UICorner", plus)
+
+    step = step or 2
+
+    box:GetPropertyChangedSignal("Text"):Connect(function()
+        local n = tonumber(box.Text)
+        if n then callback(n) end
+    end)
+
+    minus.MouseButton1Click:Connect(function()
+        local curr = tonumber(box.Text) or default
+        curr = math.max(0, curr - step)
+        box.Text = tostring(curr)
+        callback(curr)
+    end)
+
+    plus.MouseButton1Click:Connect(function()
+        local curr = tonumber(box.Text) or default
+        curr = curr + step
+        box.Text = tostring(curr)
+        callback(curr)
+    end)
+
+    return frame
+end
+
+-- 6 thanh điều chỉnh
+CreateSlider(combatScrolling, "Trục X:", Config.OX, function(v) Config.OX = v end)
+CreateSlider(combatScrolling, "Trục Y:", Config.OY, function(v) Config.OY = v end)
+CreateSlider(combatScrolling, "Trục Z:", Config.OZ, function(v) Config.OZ = v end)
+CreateSlider(combatScrolling, "Tốc độ ZZ:", Config.ZZSpeed, function(v) Config.ZZSpeed = v end)
+CreateSlider(combatScrolling, "Tốc độ lên xuống ZZ:", Config.ZZUpDownSpeed, function(v) Config.ZZUpDownSpeed = v end)
+CreateSlider(combatScrolling, "Bán kính ZZ:", Config.ZZRange, function(v) Config.ZZRange = v end)
+
+-- ==================== XÂY DỰNG NỘI DUNG HITBOX FRAME ====================
+local hitboxScrolling = Instance.new("ScrollingFrame", hitboxFrame)
+hitboxScrolling.Size = UDim2.new(1, -10, 1, -10)
+hitboxScrolling.Position = UDim2.new(0, 5, 0, 5)
+hitboxScrolling.BackgroundTransparency = 1
+hitboxScrolling.ScrollBarThickness = 3
+hitboxScrolling.CanvasSize = UDim2.new(0, 0, 0, 600)
+hitboxScrolling.ZIndex = 6
+
+local hbList = Instance.new("UIListLayout", hitboxScrolling)
+hbList.Padding = UDim.new(0, 5)
+
+local hTitle = Instance.new("TextLabel", hitboxScrolling)
+hTitle.Size = UDim2.new(1, 0, 0, 25)
+hTitle.Text = "🛡️ HITBOX SYSTEM"
+hTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+hTitle.BackgroundTransparency = 1
+hTitle.Font = Enum.Font.GothamBold
+hTitle.TextSize = 14
+hTitle.ZIndex = 6
+
+local hitboxToggleBtn = Instance.new("TextButton", hitboxScrolling)
+hitboxToggleBtn.Size = UDim2.new(1, 0, 0, 40)
+hitboxToggleBtn.Text = "BẬT HITBOX"
+hitboxToggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+hitboxToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+hitboxToggleBtn.Font = Enum.Font.GothamBold
+hitboxToggleBtn.TextSize = 12
+hitboxToggleBtn.ZIndex = 6
+Instance.new("UICorner", hitboxToggleBtn)
+
+hitboxToggleBtn.MouseButton1Click:Connect(function()
+    Config.IsHitboxExtend = not Config.IsHitboxExtend
+    hitboxToggleBtn.BackgroundColor3 = Config.IsHitboxExtend and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60, 60, 60)
+    hitboxToggleBtn.Text = Config.IsHitboxExtend and "ĐANG BẬT HITBOX" or "BẬT HITBOX"
+    if not Config.IsHitboxExtend then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                p.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1)
+                p.Character.HumanoidRootPart.Transparency = 1
+                p.Character.HumanoidRootPart.Color = Color3.fromRGB(255, 255, 255)
+            end
+        end
+    end
+end)
+
+local hbSizeLabel = Instance.new("TextLabel", hitboxScrolling)
+hbSizeLabel.Size = UDim2.new(1, 0, 0, 20)
+hbSizeLabel.Text = "Kích thước Hitbox:"
+hbSizeLabel.TextColor3 = Color3.fromRGB(200, 200, 200)
+hbSizeLabel.BackgroundTransparency = 1
+hbSizeLabel.Font = Enum.Font.Gotham
+hbSizeLabel.TextSize = 11
+hbSizeLabel.TextXAlignment = Enum.TextXAlignment.Left
+hbSizeLabel.ZIndex = 6
+
+local hbSizeFrame = Instance.new("Frame", hitboxScrolling)
+hbSizeFrame.Size = UDim2.new(1, 0, 0, 30)
+hbSizeFrame.BackgroundTransparency = 1
+hbSizeFrame.ZIndex = 6
+
+local hbSizeMinus = Instance.new("TextButton", hbSizeFrame)
+hbSizeMinus.Size = UDim2.new(0.2, 0, 1, 0)
+hbSizeMinus.Text = "-"
+hbSizeMinus.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+hbSizeMinus.TextColor3 = Color3.fromRGB(255, 255, 255)
+hbSizeMinus.Font = Enum.Font.GothamBlack
+hbSizeMinus.TextSize = 16
+hbSizeMinus.ZIndex = 6
+Instance.new("UICorner", hbSizeMinus)
+
+local hbSizeBox = Instance.new("TextBox", hbSizeFrame)
+hbSizeBox.Size = UDim2.new(0.5, -10, 1, 0)
+hbSizeBox.Position = UDim2.new(0.25, 5, 0, 0)
+hbSizeBox.Text = "20"
+hbSizeBox.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+hbSizeBox.TextColor3 = Color3.fromRGB(255, 255, 255)
+hbSizeBox.Font = Enum.Font.GothamBold
+hbSizeBox.TextSize = 12
+hbSizeBox.ZIndex = 6
+Instance.new("UICorner", hbSizeBox)
+
+local hbSizePlus = Instance.new("TextButton", hbSizeFrame)
+hbSizePlus.Size = UDim2.new(0.2, 0, 1, 0)
+hbSizePlus.Position = UDim2.new(0.8, 0, 0, 0)
+hbSizePlus.Text = "+"
+hbSizePlus.BackgroundColor3 = Color3.fromRGB(40, 150, 40)
+hbSizePlus.TextColor3 = Color3.fromRGB(255, 255, 255)
+hbSizePlus.Font = Enum.Font.GothamBlack
+hbSizePlus.TextSize = 16
+hbSizePlus.ZIndex = 6
+Instance.new("UICorner", hbSizePlus)
+
+hbSizeBox:GetPropertyChangedSignal("Text"):Connect(function()
+    local n = tonumber(hbSizeBox.Text)
+    if n then Config.HitboxSize = n end
+end)
+
+hbSizeMinus.MouseButton1Click:Connect(function()
+    local c = tonumber(hbSizeBox.Text) or 20
+    c = math.max(1, c - 2)
+    hbSizeBox.Text = tostring(c)
+    Config.HitboxSize = c
+end)
+
+hbSizePlus.MouseButton1Click:Connect(function()
+    local c = tonumber(hbSizeBox.Text) or 20
+    c = c + 2
+    hbSizeBox.Text = tostring(c)
+    Config.HitboxSize = c
+end)
+
+local playerListLabel = Instance.new("TextLabel", hitboxScrolling)
+playerListLabel.Size = UDim2.new(1, 0, 0, 20)
+playerListLabel.Text = "📋 DANH SÁCH (BẤM ĐỂ TARGET/LOẠI TRỪ)"
+playerListLabel.TextColor3 = Color3.fromRGB(212, 175, 55)
+playerListLabel.BackgroundTransparency = 1
+playerListLabel.Font = Enum.Font.GothamBold
+playerListLabel.TextSize = 10
+playerListLabel.TextXAlignment = Enum.TextXAlignment.Left
+playerListLabel.ZIndex = 6
+
+local playerListContainer = Instance.new("ScrollingFrame", hitboxScrolling)
+playerListContainer.Size = UDim2.new(1, 0, 0, 200)
+playerListContainer.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+playerListContainer.ScrollBarThickness = 4
+playerListContainer.CanvasSize = UDim2.new(0, 0, 0, 0)
+playerListContainer.ZIndex = 6
+
+local playerListLayout = Instance.new("UIListLayout", playerListContainer)
+playerListLayout.Padding = UDim.new(0, 3)
+
+local function UpdatePlayerList()
+    for _, child in ipairs(playerListContainer:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then
+            local pBtn = Instance.new("TextButton", playerListContainer)
+            pBtn.Size = UDim2.new(1, -5, 0, 30)
+            pBtn.Font = Enum.Font.Gotham
+            pBtn.TextSize = 11
+            pBtn.TextXAlignment = Enum.TextXAlignment.Left
+            pBtn.ZIndex = 6
+            Instance.new("UICorner", pBtn)
+
+            if Config.HitboxWhitelist[p.Name] then
+                pBtn.Text = "  [LOẠI TRỪ] " .. p.DisplayName .. " (@" .. p.Name .. ")"
+                pBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+                pBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+            else
+                pBtn.Text = "  " .. p.DisplayName .. " (@" .. p.Name .. ")"
+                pBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
+                pBtn.BackgroundColor3 = Color3.fromRGB(45, 45, 45)
+            end
+
+            pBtn.MouseButton1Click:Connect(function()
+                if Config.HitboxWhitelist[p.Name] then
+                    Config.HitboxWhitelist[p.Name] = nil
+                    if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                        p.Character.HumanoidRootPart.Size = Vector3.new(2, 2, 1)
+                        p.Character.HumanoidRootPart.Transparency = 1
+                        p.Character.HumanoidRootPart.Color = Color3.fromRGB(255, 255, 255)
+                    end
+                else
+                    Config.HitboxWhitelist[p.Name] = true
+                end
+                selectedTarget = p
+                nameBox.Text = p.Name
+                UpdatePlayerList()
+            end)
+        end
+    end
+    playerListContainer.CanvasSize = UDim2.new(0, 0, 0, playerListLayout.AbsoluteContentSize.Y + 5)
+end
+
+Players.PlayerAdded:Connect(UpdatePlayerList)
+Players.PlayerRemoving:Connect(function(p)
+    Config.HitboxWhitelist[p.Name] = nil
+    UpdatePlayerList()
+end)
+UpdatePlayerList()
+
+-- ==================== XÂY DỰNG NỘI DUNG ESCAPE FRAME ====================
+local escapeScrolling = Instance.new("ScrollingFrame", escapeFrame)
+escapeScrolling.Size = UDim2.new(1, -10, 1, -10)
+escapeScrolling.Position = UDim2.new(0, 5, 0, 5)
+escapeScrolling.BackgroundTransparency = 1
+escapeScrolling.ScrollBarThickness = 3
+escapeScrolling.CanvasSize = UDim2.new(0, 0, 0, 430)
+escapeScrolling.ZIndex = 6
+
+local escList = Instance.new("UIListLayout", escapeScrolling)
+escList.Padding = UDim.new(0, 5)
+
+local eTitle = Instance.new("TextLabel", escapeScrolling)
+eTitle.Size = UDim2.new(1, 0, 0, 25)
+eTitle.Text = "🐍 ESCAPE SYSTEM"
+eTitle.TextColor3 = Color3.fromRGB(255, 255, 255)
+eTitle.BackgroundTransparency = 1
+eTitle.Font = Enum.Font.GothamBold
+eTitle.TextSize = 14
+eTitle.ZIndex = 6
+
+-- Nút bật/tắt Auto Escape
+local autoEscapeBtn = Instance.new("TextButton", escapeScrolling)
+autoEscapeBtn.Size = UDim2.new(1, 0, 0, 45)
+autoEscapeBtn.Text = "BẬT AUTO ESCAPE (MẤT MÁU)"
+autoEscapeBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+autoEscapeBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+autoEscapeBtn.Font = Enum.Font.GothamBold
+autoEscapeBtn.TextSize = 12
+autoEscapeBtn.ZIndex = 6
+Instance.new("UICorner", autoEscapeBtn)
+
+autoEscapeBtn.MouseButton1Click:Connect(function()
+    autoEscapeEnabled = not autoEscapeEnabled
+    autoEscapeBtn.BackgroundColor3 = autoEscapeEnabled and Color3.fromRGB(0, 170, 0) or Color3.fromRGB(60, 60, 60)
+    autoEscapeBtn.Text = autoEscapeEnabled and "AUTO ESCAPE: ĐANG BẬT" or "BẬT AUTO ESCAPE (MẤT MÁU)"
+end)
+
+-- Nút Escape thủ công
+local escapeToggleBtn = Instance.new("TextButton", escapeScrolling)
+escapeToggleBtn.Size = UDim2.new(1, 0, 0, 45)
+escapeToggleBtn.Text = "KHỞI ĐỘNG ESCAPE NGAY"
+escapeToggleBtn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+escapeToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+escapeToggleBtn.Font = Enum.Font.GothamBold
+escapeToggleBtn.TextSize = 14
+escapeToggleBtn.ZIndex = 6
+Instance.new("UICorner", escapeToggleBtn)
+
+escapeToggleBtn.MouseButton1Click:Connect(function()
+    if not isEscaping then
+        TriggerEscape()
+    end
+end)
+
+CreateSlider(escapeScrolling, "Tốc độ Escape:", Config.EscapeSpeed, function(v) Config.EscapeSpeed = v end, 10)
+CreateSlider(escapeScrolling, "Khoảng cách X:", Config.EscapeDistanceX, function(v) Config.EscapeDistanceX = v end, 10)
+CreateSlider(escapeScrolling, "Chiều cao Escape:", Config.EscapeHeight, function(v) Config.EscapeHeight = v end, 10)
+CreateSlider(escapeScrolling, "Cường độ Zic Zac:", Config.EscapeZicZacIntensity, function(v) Config.EscapeZicZacIntensity = v end, 5)
+CreateSlider(escapeScrolling, "Tốc độ Zic Zac:", Config.EscapeZicZacSpeed, function(v) Config.EscapeZicZacSpeed = v end, 2)
+
+-- ==================== HÀM ESCAPE BAY XÉO LÊN THEO PHƯƠNG X ====================
+function TriggerEscape()
+    if isEscaping then return end
+    local myChar = player.Character
+    if not myChar or not myChar:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = myChar.HumanoidRootPart
+    local hum = myChar:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return end
+
+    local target = selectedTarget
+    if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then
+        local closest = nil
+        local closestDist = math.huge
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local dist = (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+                if dist < closestDist then
+                    closestDist = dist
+                    closest = p
+                end
+            end
+        end
+        target = closest
+    end
+
+    if not target then return end
+    local targetHrp = target.Character.HumanoidRootPart
+
+    isEscaping = true
+    local wasTelePro = IsTelePro
+    IsTelePro = false
+
+    -- Set network owner để có thể di chuyển mượt
+    pcall(function()
+        settings().Physics.AllowSleep = false
+        for _, part in pairs(myChar:GetDescendants()) do
+            if part:IsA("BasePart") and part:CanSetNetworkOwnership() then
+                part:SetNetworkOwner(player)
+            end
+        end
+    end)
+
+    local escapeStart = tick()
+    local escapeDuration = 2.0
+    local zicZacSeed = math.random() * 100
+
+    -- Lưu vị trí ban đầu
+    local startPos = hrp.Position
+
+    local escapeConnection
+    escapeConnection = RunService.Heartbeat:Connect(function(deltaTime)
+        if not hrp or not targetHrp or hum.Health <= 0 then
+            if escapeConnection then escapeConnection:Disconnect() end
+            isEscaping = false
+            IsTelePro = wasTelePro
+            return
+        end
+
+        local elapsed = tick() - escapeStart
+        if elapsed >= escapeDuration then
+            if escapeConnection then escapeConnection:Disconnect() end
+
+            pcall(function()
+                for _, part in pairs(myChar:GetDescendants()) do
+                    if part:IsA("BasePart") and part:CanSetNetworkOwnership() then
+                        part:SetNetworkOwner(nil)
+                    end
+                end
+            end)
+
+            hrp.AssemblyLinearVelocity = Vector3.zero
+            hrp.AssemblyAngularVelocity = Vector3.zero
+            isEscaping = false
+
+            if wasTelePro then
+                IsTelePro = true
+                tpBtn.BackgroundColor3 = Color3.fromRGB(0, 170, 0)
+                tpBtn.Text = "ĐANG BÁM ⚡"
+            end
+            return
+        end
+
+        -- Tính toán vị trí đích: XÉO LÊN theo phương X
+        -- Lấy vị trí hiện tại làm gốc, di chuyển theo X và Y
+        local currentTargetX = startPos.X + Config.EscapeDistanceX
+        local currentTargetY = startPos.Y + Config.EscapeHeight
+        local currentTargetZ = startPos.Z
+
+        -- Zic zac loạn xạ quanh vị trí đích
+        local zicZacTime = elapsed * Config.EscapeZicZacSpeed
+        
+        -- Tạo dao động zic zac
+        local zShakeX = math.sin(zicZacTime * 1.7 + zicZacSeed) * Config.EscapeZicZacIntensity * 0.3
+        local zShakeY = math.cos(zicZacTime * 2.3 + zicZacSeed * 1.5) * Config.EscapeZicZacIntensity * 0.4
+        local zShakeZ = math.sin(zicZacTime * 3.1 + zicZacSeed * 2.0) * Config.EscapeZicZacIntensity * 0.5
+
+        -- Jitter ngẫu nhiên
+        local jitterX = (math.noise(tick() * 22, zicZacSeed, 0) - 0.5) * Config.EscapeZicZacIntensity * 0.6
+        local jitterY = (math.noise(0, tick() * 22, zicZacSeed) - 0.5) * Config.EscapeZicZacIntensity * 0.4
+        local jitterZ = (math.noise(zicZacSeed, 0, tick() * 22) - 0.5) * Config.EscapeZicZacIntensity * 0.8
+
+        -- Vị trí đích cuối cùng = vị trí cơ bản + zic zac + jitter
+        local finalTargetPos = Vector3.new(
+            currentTargetX + zShakeX + jitterX,
+            currentTargetY + zShakeY + jitterY,
+            currentTargetZ + zShakeZ + jitterZ
+        )
+
+        -- Hướng từ vị trí hiện tại đến vị trí đích
+        local direction = (finalTargetPos - hrp.Position).Unit
+
+        -- Tốc độ giảm dần khi gần đến đích
+        local distToTarget = (finalTargetPos - hrp.Position).Magnitude
+        local speedMultiplier = math.min(1, distToTarget / 50) -- Giảm tốc khi gần đích
+        
+        local currentSpeed = Config.EscapeSpeed * speedMultiplier
+
+        -- Áp dụng vận tốc
+        hrp.AssemblyLinearVelocity = direction * currentSpeed
+        
+        -- Xoay người loạn xạ theo zic zac
+        hrp.AssemblyAngularVelocity = Vector3.new(
+            (math.noise(tick() * 15, 0, 0) - 0.5) * Config.EscapeZicZacIntensity * 0.2,
+            (math.noise(0, tick() * 15, 0) - 0.5) * Config.EscapeZicZacIntensity * 0.2,
+            (math.noise(0, 0, tick() * 15) - 0.5) * Config.EscapeZicZacIntensity * 0.3
+        )
+
+        -- Giữ network owner
+        pcall(function()
+            for _, part in pairs(myChar:GetDescendants()) do
+                if part:IsA("BasePart") and part:CanSetNetworkOwnership() then
+                    part:SetNetworkOwner(player)
+                end
+            end
+        end)
+    end)
+end
+
+-- ==================== HỆ THỐNG PHÁT HIỆN MẤT MÁU ====================
+local lastHealth = 100
+
+local function CheckHealthChange()
+    local char = player.Character
+    if not char then return false end
+    local humanoid = char:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        if humanoid.Health < lastHealth then
+            lastHealth = humanoid.Health
+            return true
+        end
+        lastHealth = humanoid.Health
+    end
+    return false
+end
+
+player.CharacterAdded:Connect(function(char)
+    local humanoid = char:WaitForChild("Humanoid")
+    lastHealth = humanoid.Health
+end)
+
+-- ==================== VÒNG LẶP CHÍNH ====================
+RunService.Heartbeat:Connect(function()
+    pcall(function()
+        if Config.IsAutoClick and CombatRemote then
+            CombatRemote:FireServer("M1")
+            CombatRemote:FireServer("M2")
+        end
+        if Config.IsAutoReblock and CombatRemote then
+            CombatRemote:FireServer("Block", true)
+        end
+    end)
+
+    if autoEscapeEnabled and not isEscaping and CheckHealthChange() then
+        TriggerEscape()
+    end
+end)
+
+RunService.Stepped:Connect(function(time, deltaTime)
+    local c = player.Character
+    if not c or not c:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = c.HumanoidRootPart
+
+    if IsNoclip or IsTelePro or AutoFarmActive or isEscaping or Config.IsHitboxExtend then
+        for _, v in pairs(c:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.CanCollide = false
+            end
+        end
+    end
+
+    local t = selectedTarget
+    local s = nameBox.Text:lower()
+    if s ~= "" and s ~= "nhập tên mục tiêu..." and s ~= "nhập tên..." then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= player and (p.Name:lower():find(s) or p.DisplayName:lower():find(s)) then
+                t = p
+                selectedTarget = p
+                break
+            end
+        end
+    end
+
+    local currentOX, currentOY, currentOZ = Config.OX, Config.OY, Config.OZ
+
+    if isZicZac and t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and not isEscaping then
+        circleAngle = circleAngle + (Config.ZZSpeed * deltaTime)
+        upDownCounter = upDownCounter + (Config.ZZUpDownSpeed * deltaTime)
+
+        currentOX = math.sin(circleAngle) * Config.ZZRange
+        currentOZ = math.cos(circleAngle) * Config.ZZRange
+        currentOY = Config.OY + math.sin(upDownCounter) * (Config.ZZRange * 0.5)
+
+        local jitterX = (math.noise(tick() * 22, 0, 0) * Config.LightningJitter)
+        local jitterZ = (math.noise(0, tick() * 22, 0) * Config.LightningJitter)
+        local jitterY = (math.noise(0, 0, tick() * 28) * (Config.LightningJitter * 0.7))
+
+        currentOX = currentOX + jitterX
+        currentOZ = currentOZ + jitterZ
+        currentOY = currentOY + jitterY
+    end
+
+    if IsTelePro and not IsBringLoop and t and t.Character and t.Character:FindFirstChild("HumanoidRootPart") and not isEscaping then
+        local thrp = t.Character.HumanoidRootPart
+        local cleanTargetCFrame = CFrame.new(thrp.Position) * (thrp.CFrame - thrp.Position)
+        local tp = cleanTargetCFrame * CFrame.new(currentOX, currentOY, currentOZ)
+
+        local dist = (tp.Position - hrp.Position).Magnitude
+        if dist > 20 then
+            hrp.Velocity = (tp.Position - hrp.Position).Unit * 200
+        else
+            hrp.CFrame = tp
+            hrp.Velocity = Vector3.zero
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if not Config.IsHitboxExtend then return end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Character then
+            local root = p.Character:FindFirstChild("HumanoidRootPart")
+            if root then
+                if Config.HitboxWhitelist[p.Name] then
+                    root.Size = Vector3.new(2, 2, 1)
+                    root.Transparency = 1
+                else
+                    root.Size = Vector3.new(Config.HitboxSize, Config.HitboxSize, Config.HitboxSize)
+                    root.Transparency = 0.5
+                    root.Color = Color3.fromRGB(0, 255, 0)
+                    root.CanCollide = false
+                end
+            end
+        end
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if Config.IsSpeedHack then
+        pcall(function()
+            local char = player.Character
+            if char and char:FindFirstChildOfClass("Humanoid") then
+                char:FindFirstChildOfClass("Humanoid").WalkSpeed = Config.CustomSpeed
+            end
+        end)
+    end
+    if Config.IsJumpPower then
+        pcall(function()
+            local char = player.Character
+            if char and char:FindFirstChildOfClass("Humanoid") then
+                char:FindFirstChildOfClass("Humanoid").JumpPower = Config.JumpPower
+            end
+        end)
+    end
+end)
+
+UserInputService.JumpRequest:Connect(function()
+    if Config.IsInfJump then
+        pcall(function()
+            local char = player.Character
+            if char and char:FindFirstChildOfClass("Humanoid") then
+                char:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+            end
+        end)
+    end
+end)
