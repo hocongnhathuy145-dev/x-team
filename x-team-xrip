@@ -3,7 +3,7 @@ local CORRECT_PASSWORD = "nhathuy1405"
 
 local Whitelist = {
     ["L21_06"] = true,
-    ["zaidepnung02"] = true,
+    ["20m_boty99"] = true,
     ["Admin_X"] = true,
 }
 
