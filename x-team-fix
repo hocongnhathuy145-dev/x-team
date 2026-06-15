@@ -1,0 +1,601 @@
+-- [[ STEALTH SYSTEM - FINAL - BÁM TỐC ĐỘ 30 MẶC ĐỊNH, MAX 1000 ]]
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local TweenService = game:GetService("TweenService")
+local CoreGui = game:GetService("CoreGui")
+
+local player = Players.LocalPlayer
+
+pcall(function()
+    if CoreGui:FindFirstChild("SpamCombatGui") then CoreGui:FindFirstChild("SpamCombatGui"):Destroy() end
+    if player.PlayerGui:FindFirstChild("SpamCombatGui") then player.PlayerGui:FindFirstChild("SpamCombatGui"):Destroy() end
+end)
+
+local SG = Instance.new("ScreenGui", CoreGui)
+SG.Name = "SpamCombatGui"
+SG.ResetOnSpawn = false
+
+-- ==================== CẤU HÌNH ====================
+local Config = {
+    IsBam = false,
+    OX = 0, OY = 0, OZ = 0,
+    BamSpeed = 35,              -- MẶC ĐỊNH 30 (NHANH HƠN 16 CỦA NGƯỜI THƯỜNG)
+    
+    IsZicZac = false,
+    ZZSpeed = 20,
+    ZZRange = 10,
+    
+    IsAutoEscape = false,
+    EscapeDuration = 3.0,
+    EscapeSpeedMax = 30,
+    
+    IsAutoClick = false,
+    IsAutoReblock = false,
+    
+    IsHitboxExtend = false,
+    HitboxSize = 15,
+    HitboxWhitelist = {},
+    
+    IsSpeedHack = false,
+    CustomSpeed = 30,           -- MẶC ĐỊNH 30
+    IsJumpPower = false,
+    JumpPower = 70,
+    
+    IsNoclip = false
+}
+
+-- ==================== BIẾN ====================
+local targetCache = nil
+local isEscaping = false
+local bamActive = false
+local bamConn = nil
+local noclipConn = nil
+local circleAngle = 0
+local lastHealth = 100
+
+-- ==================== TÌM MỤC TIÊU ====================
+local function FindTarget(searchText)
+    if searchText and searchText ~= "" and searchText ~= "nhập tên..." and searchText ~= "nhập tên mục tiêu..." then
+        local lower = searchText:lower()
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and (p.Name:lower():find(lower) or p.DisplayName:lower():find(lower)) then return p end
+        end
+    end
+    
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+    local hrp = char.HumanoidRootPart
+    
+    local closest, closestDist = nil, math.huge
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local dist = (p.Character.HumanoidRootPart.Position - hrp.Position).Magnitude
+            if dist < closestDist then closestDist = dist; closest = p end
+        end
+    end
+    return closest
+end
+
+-- ==================== CHECK MÁU ====================
+local function CheckHit()
+    local char = player.Character
+    if not char then return false end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if hum then
+        if hum.Health < lastHealth then lastHealth = hum.Health; return true end
+        lastHealth = hum.Health
+    end
+    return false
+end
+
+-- ==================== NO CLIP ====================
+local function EnableNoclip()
+    if noclipConn then return end
+    noclipConn = RunService.Stepped:Connect(function()
+        pcall(function()
+            local char = player.Character
+            if char then for _, v in ipairs(char:GetDescendants()) do if v:IsA("BasePart") then v.CanCollide = false end end end
+        end)
+    end)
+end
+
+local function DisableNoclip()
+    if noclipConn then noclipConn:Disconnect(); noclipConn = nil end
+end
+
+-- ==================== BÁM - HUMANOID:MOVE() + VELOCITY ====================
+local function StartBam(target, ox, oy, oz)
+    if bamConn then bamConn:Disconnect(); bamConn = nil end
+    bamActive = true
+    
+    if not Config.IsNoclip then
+        Config.IsNoclip = true
+        EnableNoclip()
+        if noclipBtn then noclipBtn.Text = "NO CLIP: BẬT"; noclipBtn.BackgroundColor3 = Color3.fromRGB(0,150,0) end
+    end
+    
+    bamConn = RunService.RenderStepped:Connect(function(dt)
+        if not bamActive then return end
+        
+        local char = player.Character
+        if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChildOfClass("Humanoid") then return end
+        
+        local hrp = char.HumanoidRootPart
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        
+        pcall(function() hrp.CanCollide = false end)
+        
+        if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then
+            target = FindTarget(nameBox and nameBox.Text or "")
+            if not target then return end
+            targetCache = target
+        end
+        
+        local targetHrp = target.Character.HumanoidRootPart
+        
+        -- Tính vị trí đích
+        local offset = targetHrp.CFrame:VectorToWorldSpace(Vector3.new(ox, oy, oz))
+        local destPos = targetHrp.Position + offset
+        local currentPos = hrp.Position
+        local dist = (destPos - currentPos).Magnitude
+        
+        if dist > 1 then
+            local moveDir = (destPos - currentPos).Unit
+            
+            -- CÁCH 1: Humanoid:Move() - TỰ NHIÊN NHẤT, KHÔNG BỊ PHÁT HIỆN
+            hum.WalkSpeed = Config.BamSpeed
+            hum:Move(moveDir, false)
+            
+            -- CÁCH 2: Velocity hỗ trợ (dưới 28)
+            local velMag = math.min(Config.BamSpeed * 0.5, 28)
+            local vel = moveDir * velMag
+            hrp.AssemblyLinearVelocity = vel
+            hrp.AssemblyAngularVelocity = Vector3.zero
+            
+            -- Sync network
+            pcall(function() hrp:SetNetworkOwner(player) end)
+        else
+            hum:Move(Vector3.new(0,0,0), false)
+            hrp.AssemblyLinearVelocity = Vector3.zero
+        end
+    end)
+end
+
+local function StopBam()
+    bamActive = false
+    if bamConn then bamConn:Disconnect(); bamConn = nil end
+    
+    pcall(function()
+        local char = player.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then hum.WalkSpeed = 16; hum:Move(Vector3.zero, false) end
+            if char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.AssemblyLinearVelocity = Vector3.zero
+            end
+        end
+    end)
+end
+
+-- ==================== ESCAPE ====================
+local function TriggerEscape()
+    if isEscaping then return end
+    
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local hrp = char.HumanoidRootPart
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    if not hum or hum.Health <= 0 then return end
+    
+    local target = targetCache or FindTarget(nil)
+    if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then return end
+    local targetHrp = target.Character.HumanoidRootPart
+    
+    isEscaping = true
+    
+    local wasBam = Config.IsBam
+    if wasBam then Config.IsBam = false; StopBam() end
+    
+    local dirAway = (hrp.Position - targetHrp.Position).Unit
+    if dirAway.Magnitude < 0.1 then dirAway = Vector3.new(-1,0,0) end
+    
+    local startTime = tick()
+    local startY = hrp.Position.Y
+    
+    local escConn
+    escConn = RunService.Heartbeat:Connect(function(dt)
+        if not hrp or not hum or hum.Health <= 0 then
+            if escConn then escConn:Disconnect() end
+            isEscaping = false
+            if wasBam and target then Config.IsBam = true; StartBam(target, Config.OX, Config.OY, Config.OZ) end
+            return
+        end
+        
+        if tick() - startTime >= Config.EscapeDuration then
+            if escConn then escConn:Disconnect() end
+            isEscaping = false
+            if wasBam and target then Config.IsBam = true; StartBam(target, Config.OX, Config.OY, Config.OZ) end
+            return
+        end
+        
+        local zz = Vector3.new(math.sin((tick()-startTime)*20)*6, 0, math.cos((tick()-startTime)*18)*6)
+        local moveDir = (dirAway + zz*0.1).Unit
+        hrp.AssemblyLinearVelocity = moveDir * Config.EscapeSpeedMax
+        hrp.CFrame = CFrame.new(Vector3.new(hrp.Position.X, startY, hrp.Position.Z))
+        pcall(function() hrp.CanCollide = false end)
+    end)
+end
+
+-- ==================== ZIC ZAC ====================
+local function ProcessZicZac(target, dt)
+    local char = player.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") or not char:FindFirstChildOfClass("Humanoid") then return end
+    local hrp = char.HumanoidRootPart
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    
+    if not target or not target.Character or not target.Character:FindFirstChild("HumanoidRootPart") then return end
+    local targetHrp = target.Character.HumanoidRootPart
+    
+    circleAngle = circleAngle + Config.ZZSpeed * dt
+    
+    local ox = math.sin(circleAngle) * Config.ZZRange
+    local oz = math.cos(circleAngle * 1.3) * Config.ZZRange
+    local oy = Config.OY + math.sin(circleAngle * 0.7) * 3
+    
+    local offset = targetHrp.CFrame:VectorToWorldSpace(Vector3.new(ox, oy, oz))
+    local destPos = targetHrp.Position + offset
+    local dist = (destPos - hrp.Position).Magnitude
+    
+    if dist > 1 then
+        local dir = (destPos - hrp.Position).Unit
+        hum.WalkSpeed = 28
+        hum:Move(dir, false)
+        hrp.AssemblyLinearVelocity = dir * 14
+        pcall(function() hrp:SetNetworkOwner(player); hrp.CanCollide = false end)
+    end
+end
+
+-- ==================== GUI ====================
+local function MakeDraggable(gui)
+    local dragging, dragInput, dragStart, startPos
+    gui.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true; dragStart = input.Position; startPos = gui.Position
+            input.Changed:Connect(function() if input.UserInputState == Enum.UserInputState.End then dragging = false end end)
+        end
+    end)
+    gui.InputChanged:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then dragInput = input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input == dragInput and dragging then
+            local delta = input.Position - dragStart
+            TweenService:Create(gui, TweenInfo.new(0.1), {
+                Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+            }):Play()
+        end
+    end)
+end
+
+local Toggle = Instance.new("TextButton", SG)
+Toggle.Size = UDim2.new(0, 45, 0, 45); Toggle.Position = UDim2.new(0.01, 0, 0.4, 0)
+Toggle.Text = "X"; Toggle.BackgroundColor3 = Color3.fromRGB(20,20,20)
+Toggle.TextColor3 = Color3.fromRGB(255,200,0); Toggle.Font = Enum.Font.GothamBlack; Toggle.TextSize = 20
+Instance.new("UICorner", Toggle).CornerRadius = UDim.new(1,0)
+Instance.new("UIStroke", Toggle).Color = Color3.fromRGB(255,200,0)
+MakeDraggable(Toggle)
+
+local Main = Instance.new("Frame", SG)
+Main.Size = UDim2.new(0, 300, 0, 500); Main.Position = UDim2.new(0.5, -150, 0.5, -250)
+Main.BackgroundColor3 = Color3.fromRGB(15,15,15); Main.Visible = false
+Instance.new("UICorner", Main); Instance.new("UIStroke", Main).Color = Color3.fromRGB(255,200,0)
+MakeDraggable(Main)
+
+Toggle.MouseButton1Click:Connect(function() Main.Visible = not Main.Visible end)
+
+local tabs = {}; local frames = {}
+for i, name in ipairs({"COMBAT", "HITBOX", "PLAYER"}) do
+    local btn = Instance.new("TextButton", Main)
+    btn.Size = UDim2.new(0, 90, 0, 28); btn.Position = UDim2.new(0, 5+(i-1)*95, 0, 33)
+    btn.Text = name; btn.BackgroundColor3 = i==1 and Color3.fromRGB(180,50,50) or Color3.fromRGB(40,40,40)
+    btn.TextColor3 = Color3.fromRGB(255,255,255); btn.Font = Enum.Font.GothamBold; btn.TextSize = 9
+    Instance.new("UICorner", btn)
+    
+    local f = Instance.new("ScrollingFrame", Main)
+    f.Size = UDim2.new(1, -10, 1, -68); f.Position = UDim2.new(0, 5, 0, 65)
+    f.Visible = (i == 1); f.BackgroundTransparency = 1; f.ScrollBarThickness = 3
+    f.CanvasSize = UDim2.new(0,0,0,600)
+    Instance.new("UIListLayout", f).Padding = UDim.new(0,4)
+    
+    tabs[i] = btn; frames[i] = f
+    
+    btn.MouseButton1Click:Connect(function()
+        for j, fr in pairs(frames) do
+            fr.Visible = (j == i); tabs[j].BackgroundColor3 = (j==i) and Color3.fromRGB(180,50,50) or Color3.fromRGB(40,40,40)
+        end
+    end)
+end
+
+local Tab1, Tab2, Tab3 = frames[1], frames[2], frames[3]
+
+local function Lbl(parent, text)
+    local l = Instance.new("TextLabel", parent)
+    l.Size = UDim2.new(1,0,0,20); l.Text = text; l.TextColor3 = Color3.fromRGB(255,200,0)
+    l.BackgroundTransparency = 1; l.Font = Enum.Font.GothamBold; l.TextSize = 10
+    l.TextXAlignment = Enum.TextXAlignment.Left
+    return l
+end
+
+local function Set(parent, label, default, cb, minV, maxV)
+    local r = Instance.new("Frame", parent); r.Size = UDim2.new(1,0,0,28); r.BackgroundTransparency = 1
+    
+    local lb = Instance.new("TextLabel", r); lb.Size = UDim2.new(0.35,0,1,0)
+    lb.Text = label; lb.TextColor3 = Color3.fromRGB(200,200,200); lb.Font = Enum.Font.Gotham
+    lb.TextSize = 9; lb.BackgroundTransparency = 1; lb.TextXAlignment = Enum.TextXAlignment.Left
+    
+    local mn = Instance.new("TextButton", r); mn.Size = UDim2.new(0.15,0,1,0); mn.Position = UDim2.new(0.35,0,0,0)
+    mn.Text = "-"; mn.BackgroundColor3 = Color3.fromRGB(150,40,40); mn.TextColor3 = Color3.fromRGB(255,255,255)
+    mn.Font = Enum.Font.GothamBlack; mn.TextSize = 12; Instance.new("UICorner", mn)
+    
+    local bx = Instance.new("TextBox", r); bx.Size = UDim2.new(0.3,0,1,0); bx.Position = UDim2.new(0.51,0,0,0)
+    bx.Text = tostring(default); bx.BackgroundColor3 = Color3.fromRGB(30,30,30)
+    bx.TextColor3 = Color3.fromRGB(255,255,255); bx.Font = Enum.Font.GothamBold; bx.TextSize = 9
+    Instance.new("UICorner", bx)
+    
+    local pl = Instance.new("TextButton", r); pl.Size = UDim2.new(0.15,0,1,0); pl.Position = UDim2.new(0.82,0,0,0)
+    pl.Text = "+"; pl.BackgroundColor3 = Color3.fromRGB(40,150,40); pl.TextColor3 = Color3.fromRGB(255,255,255)
+    pl.Font = Enum.Font.GothamBlack; pl.TextSize = 12; Instance.new("UICorner", pl)
+    
+    local function clamp(v)
+        if minV and maxV then return math.max(minV, math.min(v, maxV)) end
+        return v
+    end
+    
+    bx:GetPropertyChangedSignal("Text"):Connect(function()
+        local n = tonumber(bx.Text); if n then cb(clamp(n)) end
+    end)
+    mn.MouseButton1Click:Connect(function()
+        local n = (tonumber(bx.Text) or default) - 1; n = clamp(n); bx.Text = tostring(n); cb(n)
+    end)
+    pl.MouseButton1Click:Connect(function()
+        local n = (tonumber(bx.Text) or default) + 1; n = clamp(n); bx.Text = tostring(n); cb(n)
+    end)
+end
+
+local function Btn(parent, text, callback)
+    local b = Instance.new("TextButton", parent)
+    b.Size = UDim2.new(1,0,0,32); b.Text = text; b.BackgroundColor3 = Color3.fromRGB(50,50,50)
+    b.TextColor3 = Color3.fromRGB(255,255,255); b.Font = Enum.Font.GothamBold; b.TextSize = 9
+    Instance.new("UICorner", b)
+    b.MouseButton1Click:Connect(function() callback(b) end)
+    return b
+end
+
+-- ==================== TAB 1: COMBAT ====================
+Lbl(Tab1, "🎯 MỤC TIÊU")
+
+local nameBox = Instance.new("TextBox", Tab1)
+nameBox.Size = UDim2.new(1,0,0,30); nameBox.PlaceholderText = "Nhập tên (để trống = gần nhất)"
+nameBox.BackgroundColor3 = Color3.fromRGB(30,30,30); nameBox.TextColor3 = Color3.fromRGB(255,255,255)
+nameBox.Font = Enum.Font.Gotham; nameBox.TextSize = 9; Instance.new("UICorner", nameBox)
+
+Lbl(Tab1, "📍 BÁM (MẶC ĐỊNH 30, MAX 1000)")
+Set(Tab1, "X:", Config.OX, function(v) Config.OX = v end, -20, 20)
+Set(Tab1, "Y:", Config.OY, function(v) Config.OY = v end, -20, 20)
+Set(Tab1, "Z:", Config.OZ, function(v) Config.OZ = v end, -20, 20)
+Set(Tab1, "Tốc độ Bám:", Config.BamSpeed, function(v) Config.BamSpeed = v end, 1, 1000)
+
+Lbl(Tab1, "⚡ TÍNH NĂNG")
+
+local noclipBtn = Btn(Tab1, "NO CLIP: TẮT", function(btn)
+    Config.IsNoclip = not Config.IsNoclip
+    if Config.IsNoclip then EnableNoclip() else DisableNoclip() end
+    btn.Text = Config.IsNoclip and "NO CLIP: BẬT" or "NO CLIP: TẮT"
+    btn.BackgroundColor3 = Config.IsNoclip and Color3.fromRGB(0,150,0) or Color3.fromRGB(50,50,50)
+end)
+
+local teleBtn = Btn(Tab1, "BÁM: TẮT", function(btn)
+    if Config.IsBam then
+        Config.IsBam = false; StopBam(); targetCache = nil
+        btn.Text = "BÁM: TẮT"; btn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+        return
+    end
+    
+    local target = FindTarget(nameBox.Text)
+    if not target then
+        nameBox.PlaceholderText = "KHÔNG TÌM THẤY!"; task.wait(1.2)
+        nameBox.PlaceholderText = "Nhập tên..."; return
+    end
+    
+    targetCache = target; Config.IsBam = true
+    StartBam(target, Config.OX, Config.OY, Config.OZ)
+    btn.Text = "BÁM: " .. target.Name; btn.BackgroundColor3 = Color3.fromRGB(0,170,0)
+end)
+
+local zzBtn = Btn(Tab1, "ZIC ZAC: TẮT", function(btn)
+    Config.IsZicZac = not Config.IsZicZac
+    btn.Text = Config.IsZicZac and "ZIC ZAC: BẬT" or "ZIC ZAC: TẮT"
+    btn.BackgroundColor3 = Config.IsZicZac and Color3.fromRGB(0,130,200) or Color3.fromRGB(50,50,50)
+end)
+
+Set(Tab1, "Tốc độ ZZ:", Config.ZZSpeed, function(v) Config.ZZSpeed = v end, 5, 50)
+Set(Tab1, "Phạm vi ZZ:", Config.ZZRange, function(v) Config.ZZRange = v end, 3, 30)
+
+local escBtn = Btn(Tab1, "ESCAPE: TẮT", function(btn)
+    Config.IsAutoEscape = not Config.IsAutoEscape
+    btn.Text = Config.IsAutoEscape and "ESCAPE: BẬT" or "ESCAPE: TẮT"
+    btn.BackgroundColor3 = Config.IsAutoEscape and Color3.fromRGB(200,100,0) or Color3.fromRGB(50,50,50)
+end)
+
+Set(Tab1, "Tốc độ ESC:", Config.EscapeSpeedMax, function(v) Config.EscapeSpeedMax = v end, 1, 1000)
+Set(Tab1, "Thời gian:", Config.EscapeDuration, function(v) Config.EscapeDuration = v end, 0.5, 5)
+
+Btn(Tab1, "AUTO M1: TẮT", function(btn)
+    Config.IsAutoClick = not Config.IsAutoClick
+    btn.Text = Config.IsAutoClick and "AUTO M1: BẬT" or "AUTO M1: TẮT"
+    btn.BackgroundColor3 = Config.IsAutoClick and Color3.fromRGB(0,150,0) or Color3.fromRGB(50,50,50)
+end)
+
+Btn(Tab1, "AUTO BLOCK: TẮT", function(btn)
+    Config.IsAutoReblock = not Config.IsAutoReblock
+    btn.Text = Config.IsAutoReblock and "AUTO BLOCK: BẬT" or "AUTO BLOCK: TẮT"
+    btn.BackgroundColor3 = Config.IsAutoReblock and Color3.fromRGB(0,150,0) or Color3.fromRGB(50,50,50)
+end)
+
+-- ==================== TAB 2: HITBOX ====================
+Lbl(Tab2, "📦 HITBOX")
+
+Btn(Tab2, "HITBOX: TẮT", function(btn)
+    Config.IsHitboxExtend = not Config.IsHitboxExtend
+    btn.Text = Config.IsHitboxExtend and "HITBOX: BẬT" or "HITBOX: TẮT"
+    btn.BackgroundColor3 = Config.IsHitboxExtend and Color3.fromRGB(200,150,0) or Color3.fromRGB(50,50,50)
+    if not Config.IsHitboxExtend then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                p.Character.HumanoidRootPart.Size = Vector3.new(2,2,1)
+                p.Character.HumanoidRootPart.Transparency = 1
+            end
+        end
+    end
+end)
+
+Set(Tab2, "Size:", Config.HitboxSize, function(v) Config.HitboxSize = v end, 5, 50)
+
+Lbl(Tab2, "🛡️ DANH SÁCH (L: LOẠI, R: BÁM)")
+
+local plist = Instance.new("ScrollingFrame", Tab2)
+plist.Size = UDim2.new(1,0,0,160); plist.BackgroundColor3 = Color3.fromRGB(20,20,20)
+plist.ScrollBarThickness = 3; plist.CanvasSize = UDim2.new(0,0,0,0)
+Instance.new("UICorner", plist)
+local pll = Instance.new("UIListLayout", plist); pll.Padding = UDim.new(0,2)
+
+local function UpdateList()
+    for _, c in ipairs(plist:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= player then
+            local pb = Instance.new("TextButton", plist)
+            pb.Size = UDim2.new(1,-4,0,26); pb.Font = Enum.Font.Gotham; pb.TextSize = 8
+            pb.TextXAlignment = Enum.TextXAlignment.Left; Instance.new("UICorner", pb)
+            
+            if Config.HitboxWhitelist[p.Name] then
+                pb.Text = " [X] " .. p.DisplayName
+                pb.TextColor3 = Color3.fromRGB(255,180,180); pb.BackgroundColor3 = Color3.fromRGB(160,30,30)
+            else
+                pb.Text = " " .. p.DisplayName
+                pb.TextColor3 = Color3.fromRGB(200,200,200); pb.BackgroundColor3 = Color3.fromRGB(38,38,38)
+            end
+            
+            pb.MouseButton1Click:Connect(function()
+                Config.HitboxWhitelist[p.Name] = not Config.HitboxWhitelist[p.Name]; UpdateList()
+            end)
+            
+            pb.MouseButton2Click:Connect(function()
+                targetCache = p; nameBox.Text = p.Name
+                if Config.IsBam then StopBam(); StartBam(p, Config.OX, Config.OY, Config.OZ)
+                    teleBtn.Text = "BÁM: " .. p.Name; teleBtn.BackgroundColor3 = Color3.fromRGB(0,170,0) end
+            end)
+        end
+    end
+    plist.CanvasSize = UDim2.new(0,0,0, pll.AbsoluteContentSize.Y + 5)
+end
+
+Players.PlayerAdded:Connect(UpdateList)
+Players.PlayerRemoving:Connect(function(p)
+    if Config.HitboxWhitelist[p.Name] then Config.HitboxWhitelist[p.Name] = nil end
+    if targetCache == p then targetCache = nil end
+    UpdateList()
+end)
+UpdateList()
+
+-- ==================== TAB 3: PLAYER ====================
+Lbl(Tab3, "🏃 TỐC ĐỘ CHẠY (MẶC ĐỊNH 30, MAX 1000)")
+
+Btn(Tab3, "SPEED: TẮT", function(btn)
+    Config.IsSpeedHack = not Config.IsSpeedHack
+    btn.Text = Config.IsSpeedHack and "SPEED: BẬT" or "SPEED: TẮT"
+    btn.BackgroundColor3 = Config.IsSpeedHack and Color3.fromRGB(0,150,0) or Color3.fromRGB(50,50,50)
+    if not Config.IsSpeedHack and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = 16
+    end
+end)
+
+Set(Tab3, "Speed:", Config.CustomSpeed, function(v) Config.CustomSpeed = v end, 1, 1000)
+
+Lbl(Tab3, "🦘 NHẢY")
+
+Btn(Tab3, "JUMP: TẮT", function(btn)
+    Config.IsJumpPower = not Config.IsJumpPower
+    btn.Text = Config.IsJumpPower and "JUMP: BẬT" or "JUMP: TẮT"
+    btn.BackgroundColor3 = Config.IsJumpPower and Color3.fromRGB(0,150,0) or Color3.fromRGB(50,50,50)
+    if Config.IsJumpPower and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        player.Character:FindFirstChildOfClass("Humanoid").JumpPower = Config.JumpPower
+    end
+end)
+
+Set(Tab3, "Jump:", Config.JumpPower, function(v)
+    Config.JumpPower = v
+    if Config.IsJumpPower and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        player.Character:FindFirstChildOfClass("Humanoid").JumpPower = v
+    end
+end, 10, 500)
+
+-- ==================== VÒNG LẶP ====================
+RunService.RenderStepped:Connect(function()
+    if Config.IsSpeedHack and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        player.Character:FindFirstChildOfClass("Humanoid").WalkSpeed = Config.CustomSpeed
+    end
+    if Config.IsJumpPower and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        player.Character:FindFirstChildOfClass("Humanoid").JumpPower = Config.JumpPower
+    end
+    if Config.IsHitboxExtend then
+        for _, p in ipairs(Players:GetPlayers()) do
+            if p ~= player and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local root = p.Character.HumanoidRootPart
+                if Config.HitboxWhitelist[p.Name] then
+                    root.Size = Vector3.new(2,2,1); root.Transparency = 1
+                else
+                    root.Size = Vector3.new(Config.HitboxSize, Config.HitboxSize, Config.HitboxSize)
+                    root.Transparency = 0.5; root.Color = Color3.fromRGB(255,255,0)
+                end
+            end
+        end
+    end
+end)
+
+RunService.Stepped:Connect(function(time, dt)
+    if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+    
+    if Config.IsZicZac and not Config.IsBam and not isEscaping then
+        local target = targetCache or FindTarget(nameBox.Text)
+        if target then ProcessZicZac(target, dt) end
+    end
+    
+    if Config.IsAutoEscape and not isEscaping and CheckHit() then
+        targetCache = FindTarget(nameBox.Text); TriggerEscape()
+    end
+end)
+
+RunService.Heartbeat:Connect(function()
+    if Config.IsAutoClick then
+        pcall(function()
+            local cr = game:GetService("ReplicatedStorage"):FindFirstChild("CombatRemote") or game:GetService("ReplicatedStorage"):FindFirstChild("Combat")
+            if cr then cr:FireServer("M1") end
+        end)
+    end
+    if Config.IsAutoReblock then
+        pcall(function()
+            local cr = game:GetService("ReplicatedStorage"):FindFirstChild("CombatRemote") or game:GetService("ReplicatedStorage"):FindFirstChild("Combat")
+            if cr then cr:FireServer("Block", true) end
+        end)
+    end
+end)
+
+player.CharacterAdded:Connect(function(char)
+    StopBam(); isEscaping = false; lastHealth = 100
+    task.wait(0.5)
+    if Config.IsBam and targetCache then StartBam(targetCache, Config.OX, Config.OY, Config.OZ) end
+    if Config.IsJumpPower and char:FindFirstChildOfClass("Humanoid") then
+        char:FindFirstChildOfClass("Humanoid").JumpPower = Config.JumpPower
+    end
+end)
