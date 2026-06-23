@@ -1,0 +1,176 @@
+-- Đảm bảo môi trường trò chơi đã tải xong hoàn toàn
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+
+local PREFIX = ";xteam"
+local ProtectedPlayers = {}
+
+-- [ 1. THÔNG BÁO TẢI THÀNH CÔNG ]
+local function Notification(title, text)
+    pcall(function()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = title,
+            Text = text,
+            Duration = 3
+        })
+    end)
+end
+
+Notification("SYSTEM", "X Team | Protection Active.")
+
+-- [ 2. LÕI BẢO VỆ (GOD MODE PLAYERS) - METATABLE HOOK BYPASS REAL ]
+local gmt = getrawmetatable(game)
+setreadonly(gmt, false)
+local oldNamecall = gmt.__namecall
+gmt.__namecall = newcclosure(function(self, ...)
+    local method = getnamecallmethod()
+    local args = {...}
+    
+    if (method == "FireServer" or method == "InvokeServer") then
+        for _, p in pairs(ProtectedPlayers) do
+            if p and p.Character then
+                for _, arg in pairs(args) do
+                    if arg == p or arg == p.Character or (type(arg) == "table" and rawget(arg, "Instance") == p.Character) then
+                        return nil
+                    end
+                end
+            end
+        end
+    end
+    return oldNamecall(self, ...)
+end)
+setreadonly(gmt, true)
+
+-- Hàm hỗ trợ lọc tìm người chơi
+local function findPlayer(name)
+    if not name then return nil end
+    for _, p in pairs(Players:GetPlayers()) do
+        if p.Name:lower():find(name:lower()) or p.DisplayName:lower():find(name:lower()) then
+            return p
+        end
+    end
+    return nil
+end
+
+-- [ 3. XỬ LÝ LỆNH BẢO VỆ ]
+local function runCommand(cmd, targetName)
+    local target = findPlayer(targetName)
+    
+    if cmd == "bv" and target then
+        if not table.find(ProtectedPlayers, target) then
+            table.insert(ProtectedPlayers, target)
+            Notification("WHITELIST", "Protected: " .. target.DisplayName)
+        end
+    elseif cmd == "unbv" and target then
+        local index = table.find(ProtectedPlayers, target)
+        if index then
+            table.remove(ProtectedPlayers, index)
+            Notification("WHITELIST", "Removed: " .. target.DisplayName)
+        end
+    end
+end
+
+-- [ 4. GIAO DIỆN HUD - NÚT "X" ]
+local ScreenGui = Instance.new("ScreenGui", game:GetService("CoreGui"))
+ScreenGui.Name = "XTeamMenu"
+ScreenGui.ResetOnSpawn = false
+
+-- NÚT TRÒN [X]
+local ToggleBtn = Instance.new("TextButton", ScreenGui)
+ToggleBtn.Size = UDim2.new(0, 35, 0, 35)
+ToggleBtn.Position = UDim2.new(0.02, 0, 0.25, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(10, 11, 15)
+ToggleBtn.Font = Enum.Font.Code
+ToggleBtn.Text = "X"
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 50, 50)
+ToggleBtn.TextSize = 16
+ToggleBtn.Active = true
+ToggleBtn.Draggable = true
+
+local BtnCorner = Instance.new("UICorner", ToggleBtn)
+BtnCorner.CornerRadius = UDim.new(1, 0)
+local BtnStroke = Instance.new("UIStroke", ToggleBtn)
+BtnStroke.Color = Color3.fromRGB(255, 50, 50)
+BtnStroke.Thickness = 1.5
+
+-- KHUNG CONSOLE
+local HUD = Instance.new("Frame", ScreenGui)
+HUD.Size = UDim2.new(0, 200, 0, 100)
+HUD.Position = UDim2.new(0.02, 45, 0.25, 0)
+HUD.BackgroundColor3 = Color3.fromRGB(8, 9, 12)
+HUD.BackgroundTransparency = 0.15
+HUD.ClipsDescendants = true
+HUD.Visible = false
+
+local HUDCorner = Instance.new("UICorner", HUD)
+HUDCorner.CornerRadius = UDim.new(0, 6)
+local HUDStroke = Instance.new("UIStroke", HUD)
+HUDStroke.Color = Color3.fromRGB(255, 50, 50)
+HUDStroke.Thickness = 1.5
+
+local List = Instance.new("TextLabel", HUD)
+List.Size = UDim2.new(1, -12, 1, -10)
+List.Position = UDim2.new(0, 8, 0, 5)
+List.TextColor3 = Color3.fromRGB(225, 230, 240)
+List.TextSize = 10
+List.TextXAlignment = Enum.TextXAlignment.Left
+List.TextYAlignment = Enum.TextYAlignment.Top
+List.BackgroundTransparency = 1
+List.Font = Enum.Font.Code
+
+local function UpdateHUDText()
+    List.Text = [[
+⌁ [ X TEAM CONSOLE ] ⌁
+──────────────────────
+⚙ ;xteam bv   [ten]
+⚙ ;xteam unbv [ten]
+──────────────────────
+🛡 Protected: ]] .. tostring(#ProtectedPlayers) .. [[
+
+⌁ Press [K] or Click [X]
+]]
+end
+UpdateHUDText()
+
+-- Cơ chế ẩn/hiện console
+local isOpen = false
+local function ToggleConsole()
+    isOpen = not isOpen
+    if isOpen then
+        HUD.Visible = true
+        HUD:TweenSize(UDim2.new(0, 200, 0, 100), Enum.EasingDirection.Out, Enum.EasingStyle.Quad, 0.2, true)
+    else
+        HUD:TweenSize(UDim2.new(0, 0, 0, 100), Enum.EasingDirection.In, Enum.EasingStyle.Quad, 0.2, true, function()
+            HUD.Visible = false
+        end)
+    end
+end
+
+ToggleBtn.MouseButton1Click:Connect(ToggleConsole)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.K then
+        ToggleConsole()
+    end
+end)
+
+HUD.Active = true
+HUD.Draggable = true
+
+-- [ 5. LẮNG NGHE CHAT ]
+LocalPlayer.Chatted:Connect(function(msg)
+    local args = msg:split(" ")
+    if args[1]:lower() == ";xteam" then
+        local cmd = args[2] and args[2]:lower()
+        local val = args[3]
+        
+        if cmd then
+            runCommand(cmd, val)
+            UpdateHUDText()
+        end
+    end
+end)
