@@ -1,0 +1,203 @@
+--[[ 
+    X TEAM| AUTO LAU XE
+    GUI X MINI | AURA XANH | RAINBOW TEXT
+    ĐI THẲNG 1 PHÁT | ĐỨNG SÁT XE | E ĂN 100%
+    Homeless Life
+]]
+
+-- ===== SERVICE =====
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
+local VIM = game:GetService("VirtualInputManager")
+local Player = Players.LocalPlayer
+
+-- ===== BIẾN =====
+local AutoWash = false
+local AutoE = false
+local Noclip = false
+local FixLag = false
+local ForceRespawn = false
+local Moving = false
+
+-- ===== VỊ TRÍ XE + CHỈNH =====
+local CarPos = Vector3.new(518.2, 4.2, 150.2)
+
+local StandDistance = 0.9   -- 🔥 QUAN TRỌNG: đứng rất gần xe (E chắc chắn hiện)
+local MoveSpeed = 20        -- 🔧 chỉnh tốc độ đi (20 chậm | 70 vừa | 90 nhanh)
+
+-- ===== GUI =====
+local gui = Instance.new("ScreenGui", Player.PlayerGui)
+gui.Name = "TAMNHI1_GUI"
+gui.ResetOnSpawn = false
+
+-- NÚT X MINI
+local mini = Instance.new("TextButton", gui)
+mini.Size = UDim2.new(0,45,0,45)
+mini.Position = UDim2.new(0,15,0.5,-22)
+mini.Text = "X"
+mini.TextScaled = true
+mini.BackgroundColor3 = Color3.fromRGB(0,120,255)
+mini.TextColor3 = Color3.new(1,1,1)
+mini.Active, mini.Draggable = true, true
+Instance.new("UICorner", mini).CornerRadius = UDim.new(1,0)
+
+-- GUI BỰ
+local frame = Instance.new("Frame", gui)
+frame.Size = UDim2.new(0,260,0,260)
+frame.Position = UDim2.new(0,80,0.5,-130)
+frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+frame.Visible = false
+frame.Active, frame.Draggable = true, true
+Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
+
+-- AURA XANH
+local stroke = Instance.new("UIStroke", frame)
+stroke.Thickness = 2
+stroke.Color = Color3.fromRGB(0,200,255)
+
+-- TITLE
+local title = Instance.new("TextLabel", frame)
+title.Size = UDim2.new(1,0,0,40)
+title.BackgroundTransparency = 1
+title.Text = "X TEAM"
+title.TextScaled = true
+title.Font = Enum.Font.GothamBold
+title.TextStrokeTransparency = 0
+
+-- RAINBOW TEXT
+task.spawn(function()
+	while true do
+		for h = 0,1,0.01 do
+			title.TextColor3 = Color3.fromHSV(h,1,1)
+			title.TextStrokeColor3 = Color3.fromHSV(h,1,1)
+			task.wait(0.03)
+		end
+	end
+end)
+
+-- ===== NÚT =====
+local function makeBtn(text, y)
+	local b = Instance.new("TextButton", frame)
+	b.Size = UDim2.new(1,-20,0,32)
+	b.Position = UDim2.new(0,10,0,y)
+	b.Text = text.." : OFF"
+	b.TextScaled = true
+	b.Font = Enum.Font.Gotham
+	b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	b.TextColor3 = Color3.new(1,1,1)
+	Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
+	return b
+end
+
+local washBtn   = makeBtn("🚗 AUTO LAU XE", 50)
+local eBtn      = makeBtn("⌨ AUTO E", 90)
+local noclipBtn = makeBtn("👻 NOCLIP", 130)
+local lagBtn    = makeBtn("⚡ FIX LAG", 170)
+
+mini.MouseButton1Click:Connect(function()
+	frame.Visible = not frame.Visible
+end)
+
+washBtn.MouseButton1Click:Connect(function()
+	AutoWash = not AutoWash
+	washBtn.Text = "🚗 AUTO LAU XE : "..(AutoWash and "ON" or "OFF")
+end)
+
+eBtn.MouseButton1Click:Connect(function()
+	AutoE = not AutoE
+	eBtn.Text = "⌨ AUTO E : "..(AutoE and "ON" or "OFF")
+end)
+
+noclipBtn.MouseButton1Click:Connect(function()
+	Noclip = not Noclip
+	noclipBtn.Text = "👻 NOCLIP : "..(Noclip and "ON" or "OFF")
+end)
+
+lagBtn.MouseButton1Click:Connect(function()
+	FixLag = not FixLag
+	lagBtn.Text = "⚡ FIX LAG : "..(FixLag and "ON" or "OFF")
+	if FixLag then
+		for _,v in pairs(workspace:GetDescendants()) do
+			if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+				v.Enabled = false
+			end
+		end
+	end
+end)
+
+-- ===== AUTO LAU XE – FIX ĐỨNG SÁT XE =====
+local function getStandPos(hrp)
+	local dir = (hrp.Position - CarPos).Unit
+	return CarPos + dir * StandDistance
+end
+
+local function moveStraight(hrp)
+	if Moving then return end
+	Moving = true
+
+	local standPos = getStandPos(hrp)
+	local dist = (standPos - hrp.Position).Magnitude
+	local time = dist / MoveSpeed
+
+	local tween = TweenService:Create(
+		hrp,
+		TweenInfo.new(time, Enum.EasingStyle.Linear),
+		{CFrame = CFrame.new(standPos, CarPos)}
+	)
+
+	tween:Play()
+	tween.Completed:Wait()
+	Moving = false
+end
+
+task.spawn(function()
+	while true do
+		task.wait(0.25)
+		if not AutoWash then continue end
+
+		local char = Player.Character
+		local hrp = char and char:FindFirstChild("HumanoidRootPart")
+		local hum = char and char:FindFirstChildOfClass("Humanoid")
+		if not (hrp and hum) then continue end
+
+		local hunger = char:FindFirstChild("Hunger")
+		if hunger and hunger.Value <= 0 and not ForceRespawn then
+			ForceRespawn = true
+			hum.Health = 0
+			continue
+		end
+
+		if (getStandPos(hrp) - hrp.Position).Magnitude > 0.3 then
+			moveStraight(hrp)
+		end
+	end
+end)
+
+Player.CharacterAdded:Connect(function()
+	ForceRespawn = false
+	Moving = false
+end)
+
+-- ===== AUTO E =====
+task.spawn(function()
+	while true do
+		task.wait(0.55)
+		if AutoE then
+			VIM:SendKeyEvent(true, Enum.KeyCode.E, false, game)
+			task.wait(0.12)
+			VIM:SendKeyEvent(false, Enum.KeyCode.E, false, game)
+		end
+	end
+end)
+
+-- ===== NOCLIP =====
+RunService.Stepped:Connect(function()
+	local char = Player.Character
+	if not char then return end
+	for _,v in pairs(char:GetDescendants()) do
+		if v:IsA("BasePart") then
+			v.CanCollide = not Noclip
+		end
+	end
+end)
