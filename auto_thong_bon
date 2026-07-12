@@ -1,6 +1,6 @@
 --[[ 
-    X TEAM| AUTO THONG BON
-    GUI X MINI | AURA XANH | RAINBOW TEXT
+    X TEAM| AUTO THONG BON 💩
+    NÚT X TRÒN NHỎ | GUI XÁM | VIỀN RAINBOW
     BAY LƠ LỬNG XUYÊN TƯỜNG | AUTO RESPAWN | E ĂN 100%
     Homeless Life
 ]]
@@ -26,7 +26,7 @@ local SavedPosition = nil
 local CarPos = Vector3.new(208.7, 4.7, 125.9)
 
 local StandDistance = 0.9
-local MoveSpeed = 28
+local MoveSpeed = 18
 local FlyHeight = 5
 
 local StepSize = 1.5
@@ -37,37 +37,52 @@ local gui = Instance.new("ScreenGui", Player.PlayerGui)
 gui.Name = "TAMNHI1_GUI"
 gui.ResetOnSpawn = false
 
--- NÚT X MINI
+-- NÚT X TRÒN NHỎ (ĐEN, CHỮ X TRẮNG SÁNG)
 local mini = Instance.new("TextButton", gui)
-mini.Size = UDim2.new(0,45,0,45)
-mini.Position = UDim2.new(0,15,0.5,-22)
+mini.Size = UDim2.new(0,35,0,35)
+mini.Position = UDim2.new(0,15,0.5,-17)
 mini.Text = "X"
 mini.TextScaled = true
-mini.BackgroundColor3 = Color3.fromRGB(0,120,255)
-mini.TextColor3 = Color3.new(1,1,1)
+mini.Font = Enum.Font.GothamBold
+mini.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+mini.TextColor3 = Color3.new(1, 1, 1)
 mini.Active = true
 mini.Draggable = true
 Instance.new("UICorner", mini).CornerRadius = UDim.new(1,0)
 
--- GUI CHÍNH
+-- VIỀN TRẮNG CHO NÚT X
+local miniStroke = Instance.new("UIStroke", mini)
+miniStroke.Thickness = 1.5
+miniStroke.Color = Color3.new(1, 1, 1)
+
+-- GUI CHÍNH (XÁM BÊN TRONG)
 local frame = Instance.new("Frame", gui)
 frame.Size = UDim2.new(0,280,0,340)
 frame.Position = UDim2.new(0,80,0.5,-170)
-frame.BackgroundColor3 = Color3.fromRGB(15,15,15)
+frame.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
 frame.Visible = false
 frame.Active = true
 frame.Draggable = true
 Instance.new("UICorner", frame).CornerRadius = UDim.new(0,12)
 
+-- VIỀN RAINBOW
 local stroke = Instance.new("UIStroke", frame)
-stroke.Thickness = 2
-stroke.Color = Color3.fromRGB(0,200,255)
+stroke.Thickness = 3
+
+task.spawn(function()
+	while true do
+		for h = 0,1,0.01 do
+			stroke.Color = Color3.fromHSV(h,1,1)
+			task.wait(0.02)
+		end
+	end
+end)
 
 -- TITLE
 local title = Instance.new("TextLabel", frame)
 title.Size = UDim2.new(1,0,0,40)
 title.BackgroundTransparency = 1
-title.Text = "X TEAM | AUTO THONG BON"
+title.Text = "X TEAM | AUTO THONG BON 💩"
 title.TextScaled = true
 title.Font = Enum.Font.GothamBold
 title.TextStrokeTransparency = 0
@@ -83,7 +98,7 @@ task.spawn(function()
 	end
 end)
 
--- ===== NÚT CHỨC NĂNG =====
+-- ===== NÚT CHỨC NĂNG (ĐEN, CHỮ TRẮNG) =====
 local function makeBtn(text, y)
 	local b = Instance.new("TextButton", frame)
 	b.Size = UDim2.new(1,-20,0,35)
@@ -91,28 +106,39 @@ local function makeBtn(text, y)
 	b.Text = text.." : OFF"
 	b.TextScaled = true
 	b.Font = Enum.Font.Gotham
-	b.BackgroundColor3 = Color3.fromRGB(40,40,40)
+	b.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 	b.TextColor3 = Color3.new(1,1,1)
 	Instance.new("UICorner", b).CornerRadius = UDim.new(0,8)
 	return b
 end
 
-local washBtn      = makeBtn("🔧 AUTO THONG BON", 50)
+local washBtn      = makeBtn("💩 AUTO THONG BON", 50)
 local eBtn         = makeBtn("⌨ AUTO E", 92)
 local noclipBtn    = makeBtn("👻 NOCLIP", 134)
 local lagBtn       = makeBtn("⚡ FIX LAG", 176)
-local speedBtn     = makeBtn("🏃 TỐC ĐỘ: "..MoveSpeed, 218)
-local respawnBtn   = makeBtn("🔄 AUTO RESPAWN", 260)
+local respawnBtn   = makeBtn("🔄 AUTO RESPAWN", 218)
 
+-- NÚT LƯU VỊ TRÍ (ĐEN, CHỮ TRẮNG)
 local saveBtn = Instance.new("TextButton", frame)
 saveBtn.Size = UDim2.new(1,-20,0,35)
-saveBtn.Position = UDim2.new(0,10,0,302)
+saveBtn.Position = UDim2.new(0,10,0,260)
 saveBtn.Text = "💾 LƯU VỊ TRÍ RESPAWN"
 saveBtn.TextScaled = true
 saveBtn.Font = Enum.Font.GothamBold
-saveBtn.BackgroundColor3 = Color3.fromRGB(30,150,80)
+saveBtn.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
 saveBtn.TextColor3 = Color3.new(1,1,1)
 Instance.new("UICorner", saveBtn).CornerRadius = UDim.new(0,8)
+
+-- TỐC ĐỘ HIỂN THỊ (XÁM, CHỮ TRẮNG MỜ)
+local speedLabel = Instance.new("TextLabel", frame)
+speedLabel.Size = UDim2.new(1,-20,0,35)
+speedLabel.Position = UDim2.new(0,10,0,302)
+speedLabel.Text = "🏃 TỐC ĐỘ: 18 (MẶC ĐỊNH)"
+speedLabel.TextScaled = true
+speedLabel.Font = Enum.Font.GothamBold
+speedLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+speedLabel.TextColor3 = Color3.new(0.8, 0.8, 0.8)
+Instance.new("UICorner", speedLabel).CornerRadius = UDim.new(0,8)
 
 -- ===== EVENT HANDLERS =====
 mini.MouseButton1Click:Connect(function()
@@ -122,7 +148,7 @@ end)
 -- AUTO THÔNG BỒN
 washBtn.MouseButton1Click:Connect(function()
 	AutoWash = not AutoWash
-	washBtn.Text = "🔧 AUTO THONG BON : "..(AutoWash and "ON" or "OFF")
+	washBtn.Text = "💩 AUTO THONG BON : "..(AutoWash and "ON" or "OFF")
 	if not AutoWash then
 		Moving = false
 	end
@@ -151,20 +177,6 @@ lagBtn.MouseButton1Click:Connect(function()
 			end
 		end
 	end
-end)
-
--- TỐC ĐỘ
-speedBtn.MouseButton1Click:Connect(function()
-	if MoveSpeed == 16 then
-		MoveSpeed = 20
-	elseif MoveSpeed == 20 then
-		MoveSpeed = 24
-	elseif MoveSpeed == 24 then
-		MoveSpeed = 28
-	elseif MoveSpeed == 28 then
-		MoveSpeed = 16
-	end
-	speedBtn.Text = "🏃 TỐC ĐỘ: "..MoveSpeed
 end)
 
 -- AUTO RESPAWN
